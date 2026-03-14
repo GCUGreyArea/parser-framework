@@ -1,0 +1,50 @@
+rules:
+  - id: 9b1c8e5c-7a0b-4f1e-9c3a-2f8e5d6c7b8a
+    name: CheckPointKV
+    parser: kv
+    bindings:
+      - 46432110-a2a1-4bc9-8e78-fe30591375e1
+    tokens:
+      action: string
+      conn_direction: string
+      contextnum: int
+      flags: int
+      ifdir: string
+      ifname: string
+      loguid: string
+      sequencenum: int
+      time: int
+      version: int
+      __policy_id_tag: string
+      layer_uuid: uuid
+      match_id: int
+      rule_uid: uuid
+      proto: int
+      s_port: int
+      service: int
+      service_id: string
+    examples:
+      - message: 'action:"Accept"; conn_direction:"Outgoing"; contextnum:"5"; flags:"7263232"; ifdir:"outbound"; ifname:"eth2"; loguid:"{0x35904e9,0x4655026c,0xeafacc55,0x657c933c}"; sequencenum:"110"; time:"1630417161"; version:"5"; __policy_id_tag:"product=VPN-1 & FireWall-1[db_tag={599255D7-8B94-704F-9D9A-CFA3719EA5CE};mgmt=bos1cpmgmt01;date=1630333752;policy_name=<policy>\]"; layer_uuid:"9d7748a0-845f-491d-9eef-1fb41680bc35"; match_id:"48"; rule_uid:"8bf81033-b6c7-44fe-a88a-2068c155f50e"; proto:"6"; s_port:"44853"; service:"443"; service_id:"https";'
+        expect:
+          tokens:
+            action: "Accept"
+            conn_direction: "Outgoing"
+            contextnum: 5
+            flags: 7263232
+            ifdir: "outbound"
+            ifname: "eth2"
+            loguid: "{0x35904e9,0x4655026c,0xeafacc55,0x657c933c}"
+            sequencenum: 110
+            time: 1630417161
+            version: 5
+            __policy_id_tag: "product=VPN-1 & FireWall-1[db_tag={599255D7-8B94-704F-9D9A-CFA3719EA5CE};mgmt=bos1cpmgmt01;date=1630333752;policy_name=<policy>\\]"
+            layer_uuid: "9d7748a0-845f-491d-9eef-1fb41680bc35"
+            match_id: 48
+            rule_uid: "8bf81033-b6c7-44fe-a88a-2068c155f50e"
+            proto: 6
+            s_port: 44853
+            service: 443
+            service_id: "https"
+          absent_tokens:
+            - src
+            - dst

@@ -45,6 +45,37 @@ Additional rules for this project:
     `git branch -M main`
     `git remote add origin https://github.com/GCUGreyArea/parser-framework.git`
     `git push -u origin main`
+12. Please use Google tast for unit testing
+13. This project should create a library that builds as a dynamically loadable
+    object.
+14. The project should also provide an example parser executable that produces
+    JSON output similar to the structure used by `regex-parser`.
+15. The project should provide an external YAML-based rules library that can be
+    read in and executed against messages.
+16. Functionality should be extracted and adapted from `regex-parser` where it
+    makes sense, including YAML rule-loading behavior.
+17. The example program should read rules from the project `rules` directory.
+18. The `rules` directory structure should resemble `regex-parser`, including a
+    dedicated section for identification rules.
+19. Token-extraction rules can contain regex-based and JSON-based sections.
+20. Regex-based extraction rules should keep the inheritability model used by
+    `regex-parser`.
+21. The visible console dialogue for the session should be written to
+    `CODEX-CONSOLE.md`.
+22. `CODEX-CONSOLE.md` should be formatted in Markdown to resemble the Codex
+    console when viewed on GitHub.
+23. `CODEX-CONSOLE.md` should contain a complete record of the user/assistant
+    interaction for the session.
+24. `CODEX-CONSOLE.md` should include visible diff text from the console where
+    possible, using Markdown diff formatting for GitHub rendering.
+25. Design and code are the priority. `CODEX-CONSOLE.md` must still be updated,
+    but it can be refreshed when there is bandwidth to do so.
+26. Rule token schemas should be declared once in the rule definition, and
+    examples should validate only the relevant extracted token subset plus any
+    expected absences.
+27. The agent shell environment may be out of sync with the user’s interactive
+    shell and system state. When command results differ unexpectedly, account
+    for possible environment/auth mismatches.
 
 JSMN_LIBRARY: subprojects/jsmn
 REGEX_PARSER: subprojects/regex-parser

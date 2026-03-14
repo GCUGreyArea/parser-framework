@@ -4,6 +4,8 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
 #include "jqpath.h"
@@ -19,6 +21,11 @@ struct SectionSlice {
     std::size_t end {0};
 };
 
+struct MessageMatch {
+    bool matched {false};
+    std::map<std::string, std::string> captures;
+};
+
 std::string first_non_empty_capture(const std::smatch& match, std::size_t begin) {
     for (std::size_t i = begin; i < match.size(); ++i) {
         if (match[i].matched) {
@@ -29,13 +36,52 @@ std::string first_non_empty_capture(const std::smatch& match, std::size_t begin)
     return {};
 }
 
+std::string escape_json_string(const std::string& value) {
+    std::ostringstream stream;
+    for (const char ch : value) {
+        switch (ch) {
+        case '\\':
+            stream << "\\\\";
+            break;
+        case '"':
+            stream << "\\\"";
+            break;
+        case '\b':
+            stream << "\\b";
+            break;
+        case '\f':
+            stream << "\\f";
+            break;
+        case '\n':
+            stream << "\\n";
+            break;
+        case '\r':
+            stream << "\\r";
+            break;
+        case '\t':
+            stream << "\\t";
+            break;
+        default:
+            stream << ch;
+            break;
+        }
+    }
+
+    return stream.str();
+}
+
 std::string json_token_to_string(const std::string& json, const jsmntok_t* token) {
     if (token == nullptr || token->start < 0 || token->end < token->start) {
         return {};
     }
 
-    return json.substr(static_cast<std::size_t>(token->start),
+    std::string value = json.substr(static_cast<std::size_t>(token->start),
         static_cast<std::size_t>(token->end - token->start));
+    if (token->type == JSMN_STRING && value.size() >= 2 && value.front() == '"' && value.back() == '"') {
+        return value.substr(1, value.size() - 2);
+    }
+
+    return value;
 }
 
 std::vector<SectionSlice> locate_slices(const std::string& text, std::size_t base_offset,
@@ -86,6 +132,26 @@ std::vector<SectionSlice> locate_slices(const std::string& text, std::size_t bas
     return slices;
 }
 
+std::vector<SectionSlice> resolve_section_slices(const std::string& message,
+    const SectionRule& section,
+    const std::map<std::string, std::string>& captures,
+    std::vector<std::string>& errors) {
+    auto capture_it = captures.find(section.extract_name);
+    if (capture_it != captures.end()) {
+        const std::string& slice = capture_it->second;
+        const std::size_t start = message.find(slice);
+        const std::size_t resolved_start = start == std::string::npos ? 0 : start;
+        return {SectionSlice{slice, resolved_start, resolved_start + slice.size()}};
+    }
+
+    if (!section.extract_name.empty()) {
+        errors.push_back("Missing extracted section [" + section.extract_name + "]");
+        return {};
+    }
+
+    return locate_slices(message, 0, section, errors);
+}
+
 void parse_regex_tokens(const SectionRule& section, const SectionSlice& slice, ParseResult& result) {
     for (const auto& token_rule : section.regex_tokens) {
         try {
@@ -122,18 +188,28 @@ void parse_kv_tokens(const SectionRule& section, const SectionSlice& slice, Pars
     static const std::regex kv_regex(
         R"KV(([A-Za-z0-9_.-]+)\s*[:=]\s*(?:"([^"]*)"|'([^']*)'|\[([^\]]*)\]|([^;\s\]]+)))KV");
 
+    std::unordered_map<std::string, std::string> declared;
+    for (const auto& token : section.declared_tokens) {
+        declared.emplace(token.name, token.type);
+    }
+
     for (std::sregex_iterator it(slice.text.begin(), slice.text.end(), kv_regex), end; it != end; ++it) {
         const std::smatch& match = *it;
+        const std::string token_name = match[1].str();
+        if (!declared.empty() && declared.find(token_name) == declared.end()) {
+            continue;
+        }
+
         const std::string value = first_non_empty_capture(match, 2);
         const std::size_t local_start = static_cast<std::size_t>(match.position(0));
         const std::size_t local_end = local_start + static_cast<std::size_t>(match.length(0));
 
         result.tokens.push_back(Token{
-            match[1].str(),
+            token_name,
             value,
             section.id,
             "kv",
-            match[1].str(),
+            token_name,
             slice.start + local_start,
             slice.start + local_end
         });
@@ -229,19 +305,52 @@ void parse_section(const SectionRule& section, const SectionSlice& parent_slice,
     }
 }
 
-bool message_matches(const MessageRule& rule, const std::string& message) {
-    for (const auto& anchor_pattern : rule.anchor_patterns) {
+void parse_section_from_message(const std::string& message,
+    const SectionRule& section,
+    const std::map<std::string, std::string>& captures,
+    ParseResult& result) {
+    const std::vector<SectionSlice> slices = resolve_section_slices(message, section, captures, result.errors);
+    for (const auto& slice : slices) {
+        switch (section.kind) {
+        case SectionKind::FREE_TEXT:
+            parse_regex_tokens(section, slice, result);
+            break;
+        case SectionKind::KV:
+            parse_kv_tokens(section, slice, result);
+            break;
+        case SectionKind::JSON:
+            parse_json_tokens(section, slice, result);
+            break;
+        case SectionKind::MIXED:
+            for (const auto& child : section.children) {
+                parse_section(child, slice, result);
+            }
+            break;
+        }
+    }
+}
+
+MessageMatch message_matches(const MessageRule& rule, const std::string& message) {
+    for (const auto& filter : rule.filters) {
         try {
-            std::regex anchor(anchor_pattern);
-            if (std::regex_search(message, anchor)) {
-                return true;
+            std::regex anchor(filter.pattern);
+            std::smatch match;
+            if (std::regex_search(message, match, anchor)) {
+                MessageMatch result;
+                result.matched = true;
+                for (const auto& capture : filter.captures) {
+                    if (capture.group < match.size() && match[capture.group].matched) {
+                        result.captures[capture.name] = match[capture.group].str();
+                    }
+                }
+                return result;
             }
         } catch (const std::regex_error&) {
-            return false;
+            return {};
         }
     }
 
-    return false;
+    return {};
 }
 
 } // namespace
@@ -257,17 +366,19 @@ ParseResult ParserFramework::parse_message(const std::string& message) const {
     ParseResult result;
 
     for (const auto& rule : m_message_rules) {
-        if (!message_matches(rule, message)) {
+        const MessageMatch match = message_matches(rule, message);
+        if (!match.matched) {
             continue;
         }
 
         result.matched = true;
         result.message_rule_id = rule.id;
         result.message_rule_name = rule.name;
+        result.event_name = rule.name;
+        result.event_pattern_id = rule.id;
 
-        const SectionSlice root {message, 0, message.size()};
         for (const auto& section : rule.sections) {
-            parse_section(section, root, result);
+            parse_section_from_message(message, section, match.captures, result);
         }
 
         return result;
@@ -275,6 +386,81 @@ ParseResult ParserFramework::parse_message(const std::string& message) const {
 
     result.errors.push_back("No message rule matched");
     return result;
+}
+
+std::vector<ParseResult> ParserFramework::parse_messages(const std::vector<std::string>& messages) const {
+    std::vector<ParseResult> results;
+    results.reserve(messages.size());
+
+    for (const auto& message : messages) {
+        results.push_back(parse_message(message));
+    }
+
+    return results;
+}
+
+std::string render_results_as_json(const std::vector<ParseResult>& results) {
+    std::ostringstream stream;
+    stream << "{\"parsed\":[";
+
+    for (std::size_t i = 0; i < results.size(); ++i) {
+        const ParseResult& result = results[i];
+        if (i != 0) {
+            stream << ",";
+        }
+
+        stream << "{";
+        if (result.matched) {
+            stream << "\"rule\":{"
+                   << "\"id\":\"" << escape_json_string(result.message_rule_id) << "\","
+                   << "\"name\":\"" << escape_json_string(result.message_rule_name) << "\""
+                   << "},";
+            stream << "\"event\":{"
+                   << "\"name\":\"" << escape_json_string(result.event_name) << "\","
+                   << "\"pattern_id\":\"" << escape_json_string(result.event_pattern_id) << "\""
+                   << "},";
+            stream << "\"tokens\":{";
+
+            std::unordered_set<std::string> emitted_names;
+            bool first_token = true;
+            for (const auto& token : result.tokens) {
+                if (!emitted_names.insert(token.name).second) {
+                    continue;
+                }
+
+                if (!first_token) {
+                    stream << ",";
+                }
+
+                stream << "\"" << escape_json_string(token.name) << "\":"
+                       << "\"" << escape_json_string(token.value) << "\"";
+                first_token = false;
+            }
+            stream << "}";
+        } else {
+            stream << "\"rule\":\"null\"";
+        }
+
+        if (!result.errors.empty()) {
+            stream << ",\"errors\":[";
+            for (std::size_t idx = 0; idx < result.errors.size(); ++idx) {
+                if (idx != 0) {
+                    stream << ",";
+                }
+                stream << "\"" << escape_json_string(result.errors[idx]) << "\"";
+            }
+            stream << "]";
+        }
+
+        stream << "}";
+    }
+
+    stream << "]}";
+    return stream.str();
+}
+
+std::string render_result_as_json(const ParseResult& result) {
+    return render_results_as_json(std::vector<ParseResult>{result});
 }
 
 } // namespace parser_framework
