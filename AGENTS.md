@@ -37,6 +37,9 @@ Additional rules for this project:
 7. For each branch of new work, a pull request should be created for review.
 8. Merges should only be performed after explicit review approval and a direct
    request to merge.
+9. Commit messages should describe the actual work performed.
+10. The initial commit message should state that it is the initial commit for
+    the log file parser infrastructure.
 
 JSMN_LIBRARY: subprojects/jsmn
 REGEX_PARSER: subprojects/regex-parser
