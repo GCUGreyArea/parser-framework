@@ -1,0 +1,32 @@
+id: RULE-EXAMPLES-CONFLICT
+name: Conflicting Example Rule
+patterns:
+  - id: CONFLICT-ROOT
+    name: Conflicting Event
+    precedence: 100
+    type: root
+    anchor: ANCHOR-1
+    match: sequential
+    tokens: [action,vendor,device_id,contextnum]
+anchors:
+  - anchor:
+    id: ANCHOR-1
+    name: msg
+    patterns: [^(msg)]
+tokens:
+  - token:
+    name: action
+    regex: action=([A-Za-z]+)
+    type: string
+  - token:
+    name: vendor
+    regex: vendor=([a-z]+)
+    type: string
+  - token:
+    name: device_id
+    regex: device=([a-z]+)
+    type: string
+  - token:
+    name: contextnum
+    regex: context=([0-9]+)
+    type: int

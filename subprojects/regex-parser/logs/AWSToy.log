@@ -1,0 +1,5 @@
+aws toy: {user:fred,ip.incoming:192.168.167.12,file:/home/barry/security/permissions.cfg,event:Access denied}
+aws toy: {user:barry,ip.incoming:192.168.167.12,file:/home/barry/security/permissions.cfg,event:Access granted}
+aws toy: {user:fred,ip.incoming:192.168.167.12,file:/home/barry/personal/lifehacks.md,event:Access granted}
+aws toy: {user:barry,ip.incoming:192.168.236.13,file:/home/barry/personal/lifehacks.md,event:Access denied}
+aws toy: {user:tom,ip.incoming:10.10.1.65,file:/home/tom/workspace/runthis.c,event:Access denied}

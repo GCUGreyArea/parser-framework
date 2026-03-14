@@ -1,0 +1,241 @@
+{
+  "parsed": [
+    {
+      "event": {
+        "name": "AWS Toy access denied",
+        "pattern_id": "2DAC1F35-864B-C244-A9D9-C3F4883423D8"
+      },
+      "property": {
+        "even.name": "aws.toy",
+        "event.string": "Access denied to fred"
+      },
+      "rule": {
+        "id": "5F175E9A-5C85-1176-810A-89A9E5CBDEA1",
+        "name": "AWS Toy"
+      },
+      "tokens": {
+        "device_id": "toy",
+        "event": "Access denied",
+        "file_name": "/home/barry/security/permissions.cfg",
+        "ip.incoming": "192.168.167.12",
+        "user": "fred",
+        "vendor": "aws"
+      }
+    },
+    {
+      "event": {
+        "name": "AWS Toy access granted",
+        "pattern_id": "3927EB41-29B8-C62E-648E-DB5F4C4C2E67"
+      },
+      "property": {
+        "even.name": "aws.toy",
+        "event.string": "Access granted to barry"
+      },
+      "rule": {
+        "id": "5F175E9A-5C85-1176-810A-89A9E5CBDEA1",
+        "name": "AWS Toy"
+      },
+      "tokens": {
+        "device_id": "toy",
+        "event": "Access granted",
+        "file_name": "/home/barry/security/permissions.cfg",
+        "ip.incoming": "192.168.167.12",
+        "user": "barry",
+        "vendor": "aws"
+      }
+    },
+    {
+      "event": {
+        "name": "AWS Toy access granted",
+        "pattern_id": "3927EB41-29B8-C62E-648E-DB5F4C4C2E67"
+      },
+      "property": {
+        "even.name": "aws.toy",
+        "event.string": "Access granted to fred"
+      },
+      "rule": {
+        "id": "5F175E9A-5C85-1176-810A-89A9E5CBDEA1",
+        "name": "AWS Toy"
+      },
+      "tokens": {
+        "device_id": "toy",
+        "event": "Access granted",
+        "file_name": "/home/barry/personal/lifehacks.md",
+        "ip.incoming": "192.168.167.12",
+        "user": "fred",
+        "vendor": "aws"
+      }
+    },
+    {
+      "event": {
+        "name": "AWS Toy access denied",
+        "pattern_id": "2DAC1F35-864B-C244-A9D9-C3F4883423D8"
+      },
+      "property": {
+        "even.name": "aws.toy",
+        "event.string": "Access denied to barry"
+      },
+      "rule": {
+        "id": "5F175E9A-5C85-1176-810A-89A9E5CBDEA1",
+        "name": "AWS Toy"
+      },
+      "tokens": {
+        "device_id": "toy",
+        "event": "Access denied",
+        "file_name": "/home/barry/personal/lifehacks.md",
+        "ip.incoming": "192.168.236.13",
+        "user": "barry",
+        "vendor": "aws"
+      }
+    },
+    {
+      "event": {
+        "name": "AWS Toy access denied",
+        "pattern_id": "2DAC1F35-864B-C244-A9D9-C3F4883423D8"
+      },
+      "property": {
+        "even.name": "aws.toy",
+        "event.string": "Access denied to tom"
+      },
+      "rule": {
+        "id": "5F175E9A-5C85-1176-810A-89A9E5CBDEA1",
+        "name": "AWS Toy"
+      },
+      "tokens": {
+        "device_id": "toy",
+        "event": "Access denied",
+        "file_name": "/home/tom/workspace/runthis.c",
+        "ip.incoming": "10.10.1.65",
+        "user": "tom",
+        "vendor": "aws"
+      }
+    },
+    {
+      "event": {
+        "name": "CheckPoint Accepted",
+        "pattern_id": "1950E2A8-D49F-1CF4-DB2B-8B37B61CFBC0"
+      },
+      "property": {
+        "event.type": "Accept.https"
+      },
+      "rule": {
+        "id": "AAE7F45F-DAF0-1004-D61E-00000A03200B",
+        "name": "CheckPoint"
+      },
+      "tokens": {
+        "action": "Accept",
+        "contextnum": 1,
+        "database_tag": "599255D7-8B94-704F-9D9A-CFA3719EA5CE",
+        "direction": "Outgoing",
+        "flags": 7263232,
+        "ifdir": "outbound",
+        "ifname": "eth2",
+        "layer_uuid": "9d7748a0-845f-491d-9eef-1fb41680bc35",
+        "loguid": "{0x35904e9,0x4655026c,0xeafacc55,0x657c933c}",
+        "match_id": 48,
+        "port": 44853,
+        "protocol": 6,
+        "rule_id": "8bf81033-b6c7-44fe-a88a-2068c155f50e",
+        "sequencenum": 110,
+        "service": 443,
+        "service_id": "https",
+        "time": 1630417161,
+        "version": 5
+      }
+    },
+    {
+      "event": {
+        "name": "CheckPoint Rejected",
+        "pattern_id": "3927EB41-29B8-C62E-648E-DB5F4C4C2E67"
+      },
+      "rule": {
+        "id": "AAE7F45F-DAF0-1004-D61E-00000A03200B",
+        "name": "CheckPoint"
+      },
+      "tokens": {
+        "action": "Reject",
+        "contextnum": 2,
+        "database_tag": "599255D7-8B94-704F-9D9A-CFA3719EA5CE",
+        "direction": "Outgoing",
+        "flags": 9734375,
+        "ifdir": "outbound",
+        "ifname": "eth2",
+        "layer_uuid": "9d7748a0-845f-491d-9eef-1fb41680bc35",
+        "loguid": "{0x35904e9,0x4655026c,0xeafacc55,0x657c933c}",
+        "match_id": 48,
+        "port": 44853,
+        "protocol": 6,
+        "rule_id": "8bf81033-b6c7-44fe-a88a-2068c155f50e",
+        "sequencenum": 110,
+        "service": 443,
+        "service_id": "https",
+        "time": 1630417161,
+        "version": 5
+      }
+    },
+    {
+      "event": {
+        "name": "CheckPoint Accepted",
+        "pattern_id": "1950E2A8-D49F-1CF4-DB2B-8B37B61CFBC0"
+      },
+      "property": {
+        "event.type": "Accept.https",
+        "threat.level": "danger"
+      },
+      "rule": {
+        "id": "AAE7F45F-DAF0-1004-D61E-00000A03200B",
+        "name": "CheckPoint"
+      },
+      "tokens": {
+        "action": "Accept",
+        "contextnum": 3,
+        "database_tag": "599255D7-8B94-704F-9D9A-CFA3719EA5CE",
+        "direction": "Incoming",
+        "flags": 9734375,
+        "ifdir": "outbound",
+        "ifname": "eth1",
+        "layer_uuid": "9d7748a0-845f-491d-9eef-1fb41680bc35",
+        "loguid": "{0x35904e9,0x4655026c,0xeafacc55,0x657c933c}",
+        "match_id": 48,
+        "port": 44853,
+        "protocol": 6,
+        "rule_id": "8bf81033-b6c7-44fe-a88a-2068c155f50e",
+        "sequencenum": 110,
+        "service": 443,
+        "service_id": "https",
+        "time": 1630417161,
+        "version": 5
+      }
+    },
+    {
+      "event": {
+        "name": "CheckPoint Rejected",
+        "pattern_id": "3927EB41-29B8-C62E-648E-DB5F4C4C2E67"
+      },
+      "rule": {
+        "id": "AAE7F45F-DAF0-1004-D61E-00000A03200B",
+        "name": "CheckPoint"
+      },
+      "tokens": {
+        "action": "Reject",
+        "contextnum": 9,
+        "database_tag": "599255D7-8B94-704F-9D9A-CFA3719EA5CE",
+        "direction": "Incoming",
+        "flags": 9734375,
+        "ifdir": "outbound",
+        "ifname": "eth1",
+        "layer_uuid": "9d7748a0-845f-491d-9eef-1fb41680bc35",
+        "loguid": "{0x35904e9,0x4655026c,0xeafacc55,0x657c933c}",
+        "match_id": 48,
+        "port": 44853,
+        "protocol": 10,
+        "rule_id": "8bf81033-b6c7-44fe-a88a-2068c155f50e",
+        "sequencenum": 110,
+        "service": 443,
+        "service_id": "https",
+        "time": 1630417161,
+        "version": 5
+      }
+    }
+  ]
+}

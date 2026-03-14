@@ -1,0 +1,35 @@
+id: RULE-DYNAMIC-GRAMMAR
+name: Dynamic Grammar Rule
+patterns:
+  - id: DYN-ROOT
+    name: Dynamic Grammar Event
+    precedence: 100
+    type: root
+    anchor: ANCHOR-1
+    match: sequential
+    tokens: [action,vendor,device_id,contextnum]
+    properties:
+      - dynamic: if action == "Accept" and (contextnum >= 3 or vendor == "azure") then event.signature = vendor + "." + device_id and score = contextnum + 2 * 3 else event.signature = vendor + ".fallback" and score = (contextnum + 2) * 3
+    example: "msg action=Accept vendor=aws device=toy context=5"
+anchors:
+  - anchor:
+    id: ANCHOR-1
+    name: msg
+    patterns: [^(msg)]
+tokens:
+  - token:
+    name: action
+    regex: action=([A-Za-z]+)
+    type: string
+  - token:
+    name: vendor
+    regex: vendor=([a-z]+)
+    type: string
+  - token:
+    name: device_id
+    regex: device=([a-z]+)
+    type: string
+  - token:
+    name: contextnum
+    regex: context=([0-9]+)
+    type: int

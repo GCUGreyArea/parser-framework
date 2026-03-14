@@ -1,0 +1,21 @@
+id: RULE-BAD-MATCH
+name: Bad Match Rule
+patterns:
+  - id: ROOT
+    name: Bad Match Pattern
+    precedence: 100
+    type: root
+    anchor: ANCHOR-1
+    match: sideways
+    tokens: [action]
+    example: "msg action=Accept"
+anchors:
+  - anchor:
+    id: ANCHOR-1
+    name: msg
+    patterns: [^(msg)]
+tokens:
+  - token:
+    name: action
+    regex: action=([A-Za-z]+)
+    type: string

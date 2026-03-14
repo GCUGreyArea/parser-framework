@@ -1,0 +1,173 @@
+id: AAE7F45F-DAF0-1004-D61E-00000A03200B
+name: CheckPoint
+desc: >-
+  CheckPoint Rule
+patterns:
+  - id: AB9107D4-DAF0-1004-D61E-00000A03200B
+    name: CheckPoint
+    precedence: 100
+    desc: >-
+      Check point
+    type: root
+    event: CheckPoint Accepted
+    anchor: DA46E37F-E30F-61B0-6288-052037C38628
+    # Tokens in this declaration will be evaluated in the order they are specified 'flags' coming before 'action' would cause the pattern fail
+    match: sequential
+    tokens: [action,direction,contextnum,flags,ifdir,ifname,loguid,sequencenum,time,version,database_tag,layer_uuid,match_id]
+    examples:
+      - message: "CheckPoint 9929 - [action:\"Drop\"; conn_direction:\"Outgoing\"; contextnum:\"1\"; flags:\"7263232\"; ifdir:\"outbound\"; ifname:\"eth2\"; loguid:\"{0x35904e9,0x4655026c,0xeafacc55,0x657c933c}\"; sequencenum:\"110\"; time:\"1630417161\"; version:\"5\"; __policy_id_tag:\"product=VPN-1 & FireWall-1[db_tag={599255D7-8B94-704F-9D9A-CFA3719EA5CE};mgmt=bos1cpmgmt01;date=1630333752;policy_name=<policy>\\]\"; layer_uuid:\"9d7748a0-845f-491d-9eef-1fb41680bc35\"; match_id:\"48\";]"
+        expect:
+          tokens:
+            action: Drop
+            direction: Outgoing
+            contextnum: 1
+            flags: 7263232
+            ifdir: outbound
+            ifname: eth2
+            loguid: "{0x35904e9,0x4655026c,0xeafacc55,0x657c933c}"
+            sequencenum: 110
+            time: 1630417161
+            version: 5
+            database_tag: 599255D7-8B94-704F-9D9A-CFA3719EA5CE
+            layer_uuid: 9d7748a0-845f-491d-9eef-1fb41680bc35
+            match_id: 48
+    # A property in this model applies to a pattern and concatenates values and token values
+  - id: 1950E2A8-D49F-1CF4-DB2B-8B37B61CFBC0
+    name: CheckPoint Accepted
+    desc: >-
+      Check point Accepted rule
+    precedence: 10
+    type: extends
+    extends: AB9107D4-DAF0-1004-D61E-00000A03200B
+    # If we specify this as a 'random' pattern ALL tokens including inherited ones will be evaluated as location independent, i.e. 'service_id' being first in the message will not matter and the pattern will succeed
+    match: sequential
+    tokens: [rule_id,protocol,port,service,service_id]
+    # An assert acts as a replacement regex and must, when enclosed in brackets, be one - i.e. The regex for 'action' will become "\[action:\"(Accept)\"; after the substitution is done
+    assert:
+      - token: action
+        value: Accept
+    properties:
+      - property:
+        name: event.type
+        deliminator: "."
+        tokens: [action,service_id]
+      - property:
+        dynamic: if contextnum >= 3 then threat.level = "danger"
+    examples:
+      - message: "CheckPoint 9929 - [action:\"Accept\"; conn_direction:\"Outgoing\"; contextnum:\"5\"; flags:\"7263232\"; ifdir:\"outbound\"; ifname:\"eth2\"; loguid:\"{0x35904e9,0x4655026c,0xeafacc55,0x657c933c}\"; sequencenum:\"110\"; time:\"1630417161\"; version:\"5\"; __policy_id_tag:\"product=VPN-1 & FireWall-1[db_tag={599255D7-8B94-704F-9D9A-CFA3719EA5CE};mgmt=bos1cpmgmt01;date=1630333752;policy_name=<policy>\\]\"; layer_uuid:\"9d7748a0-845f-491d-9eef-1fb41680bc35\"; match_id:\"48\"; rule_uid:\"8bf81033-b6c7-44fe-a88a-2068c155f50e\"; proto:\"6\"; s_port:\"44853\"; service:\"443\"; service_id:\"https\";]"
+        expect:
+          tokens:
+            action: Accept
+            contextnum: 5
+            rule_id: 8bf81033-b6c7-44fe-a88a-2068c155f50e
+            protocol: 6
+            port: 44853
+            service: 443
+            service_id: https
+          properties:
+            event.type: Accept.https
+            threat.level: danger
+  - id: 3927EB41-29B8-C62E-648E-DB5F4C4C2E67
+    name: CheckPoint Rejected
+    desc: >-
+      Check point Rejected rule
+    precedence: 10
+    type: extends
+    extends: AB9107D4-DAF0-1004-D61E-00000A03200B
+    match: sequential
+    tokens: [rule_id,protocol,port,service,service_id]
+    assert:
+      - token: action
+        value: Reject
+    examples:
+      - message: "CheckPoint 9929 - [action:\"Reject\"; conn_direction:\"Outgoing\"; contextnum:\"1\"; flags:\"7263232\"; ifdir:\"outbound\"; ifname:\"eth2\"; loguid:\"{0x35904e9,0x4655026c,0xeafacc55,0x657c933c}\"; sequencenum:\"110\"; time:\"1630417161\"; version:\"5\"; __policy_id_tag:\"product=VPN-1 & FireWall-1[db_tag={599255D7-8B94-704F-9D9A-CFA3719EA5CE};mgmt=bos1cpmgmt01;date=1630333752;policy_name=<policy>\\]\"; layer_uuid:\"9d7748a0-845f-491d-9eef-1fb41680bc35\"; match_id:\"48\"; rule_uid:\"8bf81033-b6c7-44fe-a88a-2068c155f50e\"; proto:\"6\"; s_port:\"44853\"; service:\"443\"; service_id:\"https\";]"
+        expect:
+          tokens:
+            action: Reject
+            contextnum: 1
+            rule_id: 8bf81033-b6c7-44fe-a88a-2068c155f50e
+            protocol: 6
+            port: 44853
+            service: 443
+            service_id: https
+          absent_properties:
+            - event.type
+            - threat.level
+anchors:
+  - anchor:
+    id: DA46E37F-E30F-61B0-6288-052037C38628
+    name: CheckPoint
+    patterns: [^(CheckPoint)]
+tokens:
+  - token:
+    name: action
+    regex: \[action:\"([A-Za-z]+)\";
+    type: string
+  - token:
+    name: direction
+    regex: conn_direction:\"([A-Za-z]+)\";
+    type: string
+  - token:
+    name: contextnum
+    regex: contextnum:\"([0-9]+)\"
+    type: int
+  - token:
+    name: flags
+    regex: flags:\"([0-9]+)\"
+    type: int
+  - token:
+    name: ifdir
+    regex: ifdir:\"([a-z]+)\"
+    type: string
+  - token:
+    name: ifname
+    regex: ifname:\"([a-z0-9]+)\"
+    type: string
+  - token:
+    name: loguid
+    regex: loguid:\"([\{\}a-z0-9,]+)\"
+    type: string
+  - token:
+    name: sequencenum
+    regex: sequencenum:\"([0-9]+)\";
+    type: int
+  - token:
+    name: time
+    regex: time:\"([0-9]+)\";
+    type: int
+  - token:
+    name: version
+    regex: version:\"([0-9]+)\";
+    type: int
+  - token:
+    name: database_tag
+    regex: \[db_tag=\{([0-9A-F\-]+)\};
+    type: string
+  - token:
+    name: layer_uuid
+    regex: layer_uuid:\"([0-9\-a-f]+)\"
+    type: string
+  - token:
+    name: match_id
+    regex: match_id:\"([0-9]+)\";
+    type: int
+  - token:
+    name: rule_id
+    regex: rule_uid:\"([0-9a-f\-]+)\";
+    type: string
+  - token:
+    name: protocol
+    regex: proto:\"([0-9]+)\";
+    type: int
+  - token:
+    name: port
+    regex: s_port:\"([0-9]+)\";
+    type: int
+  - token:
+    name: service
+    regex: service:\"([0-9]+)\";
+    type: int
+  - token:
+    name: service_id
+    regex: service_id:\"(https|http|scp)\";
+    type: string

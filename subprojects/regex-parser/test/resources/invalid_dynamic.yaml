@@ -1,0 +1,23 @@
+id: RULE-BAD-DYNAMIC
+name: Bad Dynamic Rule
+patterns:
+  - id: ROOT
+    name: Bad Dynamic Pattern
+    precedence: 100
+    type: root
+    anchor: ANCHOR-1
+    match: sequential
+    tokens: [action]
+    properties:
+      - dynamic: if action == "Accept" then threat.level = "danger" or other.level = "warn"
+    example: "msg action=Accept"
+anchors:
+  - anchor:
+    id: ANCHOR-1
+    name: msg
+    patterns: [^(msg)]
+tokens:
+  - token:
+    name: action
+    regex: action=([A-Za-z]+)
+    type: string

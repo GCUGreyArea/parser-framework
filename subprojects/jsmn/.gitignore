@@ -1,0 +1,5 @@
+build/
+*.bin
+src/*.tab.h
+docs/html
+back/

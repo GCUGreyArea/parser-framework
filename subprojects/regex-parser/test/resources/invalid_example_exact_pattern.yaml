@@ -1,0 +1,44 @@
+id: RULE-EXAMPLES-EXACT-PATTERN
+name: Example Exact Pattern Validation Rule
+patterns:
+  - id: 9000-ROOT
+    name: Base Event
+    precedence: 100
+    type: root
+    anchor: ANCHOR-1
+    match: sequential
+    tokens: [action,vendor,device_id,contextnum]
+  - id: 1000-CHILD
+    name: Accepted Event
+    precedence: 10
+    type: extends
+    extends: 9000-ROOT
+    match: sequential
+    tokens: []
+    assert:
+      - token: action
+        value: Accept
+    examples:
+      - message: "msg action=Reject vendor=aws device=toy context=5"
+anchors:
+  - anchor:
+    id: ANCHOR-1
+    name: msg
+    patterns: [^(msg)]
+tokens:
+  - token:
+    name: action
+    regex: action=([A-Za-z]+)
+    type: string
+  - token:
+    name: vendor
+    regex: vendor=([a-z]+)
+    type: string
+  - token:
+    name: device_id
+    regex: device=([a-z]+)
+    type: string
+  - token:
+    name: contextnum
+    regex: context=([0-9]+)
+    type: int

@@ -1,0 +1,34 @@
+id: RULE-PRECEDENCE-EQUAL
+name: Precedence Equal Tokens
+patterns:
+  - id: ROOT-PATTERN
+    name: Root Pattern
+    precedence: 100
+    type: root
+    anchor: ANCHOR-1
+    match: sequential
+    tokens: [kind]
+  - id: A-HIGH-PRECEDENCE
+    name: High Precedence Value
+    precedence: 20
+    type: extends
+    extends: ROOT-PATTERN
+    match: sequential
+    tokens: []
+  - id: Z-LOW-PRECEDENCE
+    name: Low Precedence Value
+    precedence: 5
+    type: extends
+    extends: ROOT-PATTERN
+    match: sequential
+    tokens: []
+anchors:
+  - anchor:
+    id: ANCHOR-1
+    name: msg
+    patterns: [^(msg)]
+tokens:
+  - token:
+    name: kind
+    regex: kind=([a-z]+)
+    type: string

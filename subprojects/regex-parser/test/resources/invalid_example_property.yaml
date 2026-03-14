@@ -1,0 +1,53 @@
+id: RULE-EXAMPLES-PROPERTY
+name: Example Property Validation Rule
+patterns:
+  - id: 9000-ROOT
+    name: Base Event
+    precedence: 100
+    type: root
+    anchor: ANCHOR-1
+    match: sequential
+    tokens: [action,vendor,device_id,contextnum]
+    properties:
+      - name: event.type
+        deliminator: "."
+        tokens: [vendor,device_id]
+  - id: 1000-CHILD
+    name: Accepted Event
+    precedence: 10
+    type: extends
+    extends: 9000-ROOT
+    match: sequential
+    tokens: []
+    assert:
+      - token: action
+        value: Accept
+    properties:
+      - dynamic: if contextnum >= 3 then threat.level = "danger" else threat.level = "low"
+    examples:
+      - message: "msg action=Accept vendor=aws device=toy context=5"
+        expect:
+          properties:
+            threat.level: low
+anchors:
+  - anchor:
+    id: ANCHOR-1
+    name: msg
+    patterns: [^(msg)]
+tokens:
+  - token:
+    name: action
+    regex: action=([A-Za-z]+)
+    type: string
+  - token:
+    name: vendor
+    regex: vendor=([a-z]+)
+    type: string
+  - token:
+    name: device_id
+    regex: device=([a-z]+)
+    type: string
+  - token:
+    name: contextnum
+    regex: context=([0-9]+)
+    type: int

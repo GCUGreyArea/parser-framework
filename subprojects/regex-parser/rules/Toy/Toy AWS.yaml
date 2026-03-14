@@ -1,0 +1,115 @@
+id: 5F175E9A-5C85-1176-810A-89A9E5CBDEA1
+name: AWS Toy
+desc: >-
+  AWS Toy
+patterns:
+  - id: 4B5D4C39-199F-1432-8A2F-93DEBF110E1
+    name: AWS Toy
+    precedence: 100
+    desc: >-
+      AWS Toy
+    type: root
+    anchor: DA46E37F-E30F-61B0-6288-052037C38628
+    match: sequential
+    # Tokens and properties will be inherited by anything pattern that extends this pattern
+    tokens: [vendor,device_id,user,ip.incoming,file_name,event]
+    properties:
+      - property:
+        dynamic: if device_id == "toy" and file_name ?= "security" then even.name = vendor + "." + device_id and event.string = event + " to " + user else event.name = "AWS event"
+    examples:
+      - message: "aws toy: {user:barry,ip.incoming:192.168.167.12,file:/home/barry/security/permissions.cfg,event:Access reviewed}"
+        expect:
+          tokens:
+            vendor: aws
+            device_id: toy
+            user: barry
+            ip.incoming: 192.168.167.12
+            file_name: /home/barry/security/permissions.cfg
+            event: Access reviewed
+          properties:
+            even.name: aws.toy
+            event.string: Access reviewed to barry
+          absent_properties:
+            - event.name
+  - id: 2DAC1F35-864B-C244-A9D9-C3F4883423D8
+    name: AWS Toy access denied
+    desc: >-
+      AWS Toy access denied
+    precedence: 10
+    type: extends
+    extends: 4B5D4C39-199F-1432-8A2F-93DEBF110E1
+    match: sequential
+    assert:
+      - token: event
+        value: Access denied
+    examples:
+      - message: "aws toy: {user:barry,ip.incoming:192.168.167.12,file:/home/barry/security/permissions.cfg,event:Access denied}"
+        expect:
+          tokens:
+            vendor: aws
+            device_id: toy
+            user: barry
+            ip.incoming: 192.168.167.12
+            file_name: /home/barry/security/permissions.cfg
+            event: Access denied
+          properties:
+            even.name: aws.toy
+            event.string: Access denied to barry
+          absent_properties:
+            - event.name
+  - id: 3927EB41-29B8-C62E-648E-DB5F4C4C2E67
+    name: AWS Toy access granted
+    desc: >-
+      AWS Toy access granted
+    precedence: 10
+    type: extends
+    extends: 4B5D4C39-199F-1432-8A2F-93DEBF110E1
+    match: sequential
+    assert:
+      - token: event
+        value: Access granted
+    examples:
+      - message: "aws toy: {user:barry,ip.incoming:192.168.167.12,file:/home/barry/security/permissions.cfg,event:Access granted}"
+        expect:
+          tokens:
+            vendor: aws
+            device_id: toy
+            user: barry
+            ip.incoming: 192.168.167.12
+            file_name: /home/barry/security/permissions.cfg
+            event: Access granted
+          properties:
+            even.name: aws.toy
+            event.string: Access granted to barry
+          absent_properties:
+            - event.name
+anchors:
+  - anchor:
+    id: DA46E37F-E30F-61B0-6288-052037C38628
+    name: AWS Toy
+    patterns: [^(aws toy)]
+tokens:
+  - token:
+    name: vendor
+    regex: ^(aws)
+    type: string
+  - token:
+    name: device_id
+    regex: (toy)
+    type: string
+  - token:
+    name: user
+    regex: user:([a-z]+)
+    type: string
+  - token:
+    name: ip.incoming
+    regex: ip.incoming:([0-9]+.[0-9]+.[0-9]+.[0-9]+)
+    type: string
+  - token:
+    name: file_name
+    regex: file:([a-z0-9\/\.]+)
+    type: string
+  - token:
+    name: event
+    regex: event:([a-zA-Z ]+)
+    type: string

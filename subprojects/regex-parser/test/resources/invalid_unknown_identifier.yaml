@@ -1,0 +1,27 @@
+id: RULE-INVALID-UNKNOWN
+name: Invalid Dynamic Identifier
+patterns:
+  - id: 9000-ROOT
+    name: Invalid Dynamic Event
+    precedence: 100
+    type: root
+    anchor: ANCHOR-1
+    match: sequential
+    tokens: [action,vendor]
+    properties:
+      - dynamic: if missing_token == "Accept" then threat.level = vendor
+    example: "msg action=Accept vendor=aws"
+anchors:
+  - anchor:
+    id: ANCHOR-1
+    name: msg
+    patterns: [^(msg)]
+tokens:
+  - token:
+    name: action
+    regex: action=([A-Za-z]+)
+    type: string
+  - token:
+    name: vendor
+    regex: vendor=([a-z]+)
+    type: string

@@ -1,0 +1,38 @@
+id: RULE-PRECEDENCE-TOKEN-COUNT
+name: Precedence Token Count
+patterns:
+  - id: ROOT-PATTERN
+    name: Root Pattern
+    precedence: 100
+    type: root
+    anchor: ANCHOR-1
+    match: sequential
+    tokens: [kind]
+  - id: A-GENERIC
+    name: Generic Match
+    precedence: 1
+    type: extends
+    extends: ROOT-PATTERN
+    match: sequential
+    tokens: []
+  - id: Z-SPECIFIC
+    name: Specific Match
+    precedence: 50
+    type: extends
+    extends: ROOT-PATTERN
+    match: sequential
+    tokens: [detail]
+anchors:
+  - anchor:
+    id: ANCHOR-1
+    name: msg
+    patterns: [^(msg)]
+tokens:
+  - token:
+    name: kind
+    regex: kind=([a-z]+)
+    type: string
+  - token:
+    name: detail
+    regex: detail=([a-z]+)
+    type: string

@@ -1,0 +1,21 @@
+id: RULE-MISSING-TOKEN
+name: Missing Token Rule
+patterns:
+  - id: ROOT
+    name: Missing Token Pattern
+    precedence: 100
+    type: root
+    anchor: ANCHOR-1
+    match: sequential
+    tokens: [missing]
+    example: "msg action=Accept"
+anchors:
+  - anchor:
+    id: ANCHOR-1
+    name: msg
+    patterns: [^(msg)]
+tokens:
+  - token:
+    name: action
+    regex: action=([A-Za-z]+)
+    type: string

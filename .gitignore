@@ -1,0 +1,8 @@
+build/
+subprojects/jsmn/build/
+subprojects/regex-parser/build/
+subprojects/regex-parser/benchmark/build/
+*.o
+*.a
+*.so
+*.out
