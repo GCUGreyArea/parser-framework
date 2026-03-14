@@ -1,0 +1,19 @@
+messages:
+  - id: 46432110-a2a1-4bc9-8e78-fe30591375e1
+    name: CheckPoint
+    message_filter:
+      - pattern: '^CheckPoint [0-9]+ - \[(?<fields>.*)\]$'
+    sections:
+      - extract: fields
+        parser: kv
+        ruleset: CheckPointKV
+    examples:
+      - message: 'CheckPoint 9929 - [action:"Accept"; conn_direction:"Outgoing"; contextnum:"5"; flags:"7263232"; ifdir:"outbound"; ifname:"eth2"; loguid:"{0x35904e9,0x4655026c,0xeafacc55,0x657c933c}"; sequencenum:"110"; time:"1630417161"; version:"5"; __policy_id_tag:"product=VPN-1 & FireWall-1[db_tag={599255D7-8B94-704F-9D9A-CFA3719EA5CE};mgmt=bos1cpmgmt01;date=1630333752;policy_name=<policy>\]"; layer_uuid:"9d7748a0-845f-491d-9eef-1fb41680bc35"; match_id:"48"; rule_uid:"8bf81033-b6c7-44fe-a88a-2068c155f50e"; proto:"6"; s_port:"44853"; service:"443"; service_id:"https";]'
+        expect:
+          captures:
+            fields: >-
+              action:"Accept"; conn_direction:"Outgoing"; contextnum:"5"; flags:"7263232"; ifdir:"outbound";
+              ifname:"eth2"; loguid:"{0x35904e9,0x4655026c,0xeafacc55,0x657c933c}"; sequencenum:"110";
+              time:"1630417161"; version:"5"; __policy_id_tag:"product=VPN-1 & FireWall-1[db_tag={599255D7-8B94-704F-9D9A-CFA3719EA5CE};mgmt=bos1cpmgmt01;date=1630333752;policy_name=<policy>\]";
+              layer_uuid:"9d7748a0-845f-491d-9eef-1fb41680bc35"; match_id:"48"; rule_uid:"8bf81033-b6c7-44fe-a88a-2068c155f50e";
+              proto:"6"; s_port:"44853"; service:"443"; service_id:"https";

@@ -10,23 +10,28 @@ can be modified here without affecting the original sibling repositories.
 - `include/parser_framework`
 - `src`
 - `examples`
+- `rules`
+- `rules/KV`
+- `rules/identification`
 - `tests`
 
 ## Current implementation
 
-The first framework slice is in place:
+The current framework slice is in place:
 
-- regex anchor-based message identification
-- recursive section dispatch
-- regex parsing for free-form text
-- generic KV parsing
-- JSON section parsing through `jsmn` with JSONPath rules
+- regex-based message identification with named capture extraction
+- downstream parser rulesets loaded from external YAML
+- KV parsing using declared token schemas
+- shared-library build output for the framework
+- example parser executable that emits JSON in a `regex-parser`-style `parsed` array
+- loader-side example validation for identification captures and KV token extraction
+- external YAML rules loaded from `rules/`
 
 ## Build
 
 ```bash
-make demo
-./build/demo
+make example_parser
+ASAN_OPTIONS=detect_leaks=0 ./build/example_parser rules
 ```
 
 ## Test
