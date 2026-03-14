@@ -487,6 +487,12 @@ assistant> The example parser itself is producing the expected JSON. The only is
 assistant> I’m doing a cleanup pass now: removing loader code that isn’t active in the current rule schema yet, and updating the README so it reflects the actual CheckPoint rules and the current verification path.
 assistant> The code and tests are now clean. I’m fixing one small README duplication and then I’ll check the branch status so I can tell you whether this slice is ready to commit and turn into a review PR.
 assistant> I’m refreshing `CODEX-CONSOLE.md` before I move to commit/push steps so the transcript includes this implementation session as well.
+assistant> The implementation slice for the agreed rule format is now working: tests pass and the example parser emits JSON from the external CheckPoint rules. I’m staging this branch, creating a descriptive commit, and then I’ll push it and open the review PR.
+assistant> The branch is committed locally.
+assistant> I’m pushing `feature/shared-library-example-parser` to `origin` now so I can create the review PR.
+assistant> The push hit the sandbox network restriction again. I’m retrying with elevated network access so I can publish the branch and open the PR.
+assistant> The branch is on GitHub now. I’m checking whether `gh` is available and authenticated so I can create the PR directly instead of only handing you the compare URL.
+assistant> `gh` is not installed in this environment, so I can push the branch but I cannot submit the PR object directly from here.
 ```
 
 ## Diff Rendering
