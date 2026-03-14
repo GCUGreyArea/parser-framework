@@ -40,6 +40,11 @@ Additional rules for this project:
 9. Commit messages should describe the actual work performed.
 10. The initial commit message should state that it is the initial commit for
     the log file parser infrastructure.
+11. The standard git bootstrap/push template for this repository is:
+    `git commit -m "first commit"`
+    `git branch -M main`
+    `git remote add origin https://github.com/GCUGreyArea/parser-framework.git`
+    `git push -u origin main`
 
 JSMN_LIBRARY: subprojects/jsmn
 REGEX_PARSER: subprojects/regex-parser
