@@ -73,6 +73,9 @@ Additional rules for this project:
 26. Rule token schemas should be declared once in the rule definition, and
     examples should validate only the relevant extracted token subset plus any
     expected absences.
+27. The agent shell environment may be out of sync with the user’s interactive
+    shell and system state. When command results differ unexpectedly, account
+    for possible environment/auth mismatches.
 
 JSMN_LIBRARY: subprojects/jsmn
 REGEX_PARSER: subprojects/regex-parser
