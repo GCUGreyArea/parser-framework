@@ -1,0 +1,72 @@
+rules:
+  - id: a8f4f3d2-12be-4f3a-a1e4-2a4a2b35bcb2
+    name: CloudflareFirewallJson
+    parser: json
+    bindings:
+      - 3fb1b277-7ec1-4cb9-a4f8-e9a87f9509d1
+    tokens:
+      action: string
+      client_asn: int
+      client_country: string
+      client_ip: ip
+      client_request_host: string
+      client_request_method: string
+      client_request_path: string
+      client_request_protocol: string
+      client_request_scheme: string
+      client_request_user_agent: string
+      datetime: string
+      description: string
+      edge_response_status: int
+      kind: string
+      ray_id: string
+      rule_id: string
+      source: string
+    dynamic_properties:
+      - 'if action == "block" and (rule_id == "6b1cc72dff9746469d4695a474430f12" or description ?= "Log4j") then threat.event = "web_attack" and threat.source_ip = client_ip and threat.target_host = client_request_host and threat.uri = client_request_path and threat.rule_name = description and threat.outcome = action and threat.family = "log4shell" and threat.technique_id = "T1190" and threat.tactic_id = "TA0001" and threat.system = "cloudflare_waf"'
+    json_matches:
+      - path: "$.Kind"
+        equals: "firewall"
+    json_tokens:
+      action: "$.Action"
+      client_asn: "$.ClientASN"
+      client_country: "$.ClientCountry"
+      client_ip: "$.ClientIP"
+      client_request_host: "$.ClientRequestHost"
+      client_request_method: "$.ClientRequestMethod"
+      client_request_path: "$.ClientRequestPath"
+      client_request_protocol: "$.ClientRequestProtocol"
+      client_request_scheme: "$.ClientRequestScheme"
+      client_request_user_agent: "$.ClientRequestUserAgent"
+      datetime: "$.Datetime"
+      description: "$.Description"
+      edge_response_status: "$.EdgeResponseStatus"
+      kind: "$.Kind"
+      ray_id: "$.RayID"
+      rule_id: "$.RuleID"
+      source: "$.Source"
+    examples:
+      - message_file: 'messages/cloudflare/log4shell-header-block.json'
+        expect:
+          tokens:
+            action: "block"
+            client_ip: "198.51.100.25"
+            client_request_host: "vpn.example.com"
+            client_request_path: "/api/login"
+            description: "Log4j Headers"
+            edge_response_status: 403
+            rule_id: "6b1cc72dff9746469d4695a474430f12"
+            source: "firewallmanaged"
+          properties:
+            threat.event: "web_attack"
+            threat.source_ip: "198.51.100.25"
+            threat.target_host: "vpn.example.com"
+            threat.uri: "/api/login"
+            threat.rule_name: "Log4j Headers"
+            threat.outcome: "block"
+            threat.family: "log4shell"
+            threat.technique_id: "T1190"
+            threat.tactic_id: "TA0001"
+            threat.system: "cloudflare_waf"
+          absent_tokens:
+            - request_id

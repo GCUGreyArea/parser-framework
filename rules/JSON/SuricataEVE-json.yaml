@@ -20,7 +20,7 @@ rules:
       alert_category: string
       alert_severity: int
     dynamic_properties:
-      - 'if alert_category ?= "Malware" then threat.event = "post_compromise_activity" and threat.source_ip = src_ip and threat.destination_ip = dest_ip and threat.signature = alert_signature and threat.severity = alert_severity'
+      - 'if alert_category ?= "Malware" then threat.event = "post_compromise_activity" and threat.source_ip = src_ip and threat.destination_ip = dest_ip and threat.signature = alert_signature and threat.severity = alert_severity and threat.family = "cryptfile2" and threat.technique_id = "T1071" and threat.tactic_id = "TA0011" and threat.system = "suricata"'
     json_matches:
       - path: "$.event_type"
         equals: "alert"
@@ -55,5 +55,9 @@ rules:
             threat.destination_ip: "192.0.2.55"
             threat.signature: "ET MALWARE Win32/CryptFile2 / Revenge Ransomware Checkin M3"
             threat.severity: 1
+            threat.family: "cryptfile2"
+            threat.technique_id: "T1071"
+            threat.tactic_id: "TA0011"
+            threat.system: "suricata"
           absent_tokens:
             - request_id
