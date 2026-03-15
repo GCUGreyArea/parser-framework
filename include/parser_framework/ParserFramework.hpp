@@ -32,6 +32,7 @@ struct ParseResult {
     std::string message_rule_name;
     std::string event_name;
     std::string event_pattern_id;
+    std::vector<std::string> token_extraction;
     std::vector<Token> tokens;
     std::vector<std::string> errors;
 };
@@ -71,6 +72,7 @@ struct SectionRule {
     std::string id;
     SectionKind kind {SectionKind::FREE_TEXT};
     std::string extract_name;
+    std::string ruleset_id;
     std::string ruleset_name;
     std::optional<std::string> locator_pattern;
     std::size_t locator_group {1};

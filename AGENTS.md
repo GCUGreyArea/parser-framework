@@ -76,6 +76,28 @@ Additional rules for this project:
 27. The agent shell environment may be out of sync with the user’s interactive
     shell and system state. When command results differ unexpectedly, account
     for possible environment/auth mismatches.
+28. After a pull request is merged, switch the local repository back to
+    `main` before starting the next phase of work.
+29. Nested message fragments that need additional tokenization should be
+    handled with sub-rules, using regex where appropriate.
+30. Tokens emitted by nested sub-rules should use dotted names rooted at the
+    parent field, for example `__policy_id_tag.db_tag`.
+31. Rendered JSON output from the example/parser output helpers should be
+    pretty-printed rather than minified.
+32. When rendered to JSON, dotted token names should be collapsed into nested
+    objects rooted at the parent token, with the parent token's original value
+    exposed as `raw` when both raw and child values exist.
+33. The rendered `rule` object should include a list of matched rule IDs in
+    encounter order, containing the top-level message rule ID plus any
+    sub-rule/ruleset IDs that emitted tokens.
+34. The framework should only orchestrate parsing: identify message structure,
+    dispatch fragments to parser engines, recurse through subsections, and
+    reassemble output tokens.
+35. Regex-based identification, location, and token extraction should execute
+    through the vendored `regex-parser` components rather than bespoke
+    `std::regex` parsing in the framework.
+36. Key-value parsing should live in a dedicated parser component separate from
+    the framework dispatcher.
 
 JSMN_LIBRARY: subprojects/jsmn
 REGEX_PARSER: subprojects/regex-parser

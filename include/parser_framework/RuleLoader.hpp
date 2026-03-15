@@ -11,6 +11,7 @@ namespace parser_framework {
 namespace RuleLoader {
 
 std::vector<MessageRule> load_rules(const std::string& path);
+std::vector<std::string> load_example_messages(const std::string& path);
 
 } // namespace RuleLoader
 

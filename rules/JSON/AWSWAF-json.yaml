@@ -1,0 +1,50 @@
+rules:
+  - id: 4f8db6bf-6934-4d04-85bf-d4c431ebc0f6
+    name: AWSWAFJson
+    parser: json
+    bindings:
+      - 1c507cb9-91d4-4024-871d-49f38ee08f36
+    tokens:
+      format_version: int
+      webacl_id: string
+      terminating_rule_id: string
+      action: string
+      source_name: string
+      source_id: string
+      client_ip: ip
+      country: string
+      uri: string
+      http_method: string
+      request_id: string
+    json_matches:
+      - path: "$.formatVersion"
+        equals: "1"
+      - path: "$.terminatingRuleType"
+        equals: "REGULAR"
+    json_tokens:
+      format_version: "$.formatVersion"
+      webacl_id: "$.webaclId"
+      terminating_rule_id: "$.terminatingRuleId"
+      action: "$.action"
+      source_name: "$.httpSourceName"
+      source_id: "$.httpSourceId"
+      client_ip: "$.httpRequest.clientIp"
+      country: "$.httpRequest.country"
+      uri: "$.httpRequest.uri"
+      http_method: "$.httpRequest.httpMethod"
+      request_id: "$.httpRequest.requestId"
+    examples:
+      - message: '{"timestamp":1576280412771,"formatVersion":1,"webaclId":"arn:aws:wafv2:ap-southeast-2:111122223333:regional/webacl/STMTest/1EXAMPLE-2ARN-3ARN-4ARN-123456EXAMPLE","terminatingRuleId":"STMTest_SQLi_XSS","terminatingRuleType":"REGULAR","action":"BLOCK","terminatingRuleMatchDetails":[{"conditionType":"SQL_INJECTION","sensitivityLevel":"HIGH","location":"HEADER","matchedData":["10","AND","1"]}],"httpSourceName":"-","httpSourceId":"-","ruleGroupList":[],"rateBasedRuleList":[],"nonTerminatingMatchingRules":[],"httpRequest":{"clientIp":"1.1.1.1","country":"AU","headers":[{"name":"Host","value":"localhost:1989"},{"name":"User-Agent","value":"curl/7.61.1"},{"name":"Accept","value":"*/*"},{"name":"x-stm-test","value":"10 AND 1=1"}],"uri":"/","args":"","httpVersion":"HTTP/1.1","httpMethod":"POST","requestId":"aws-waf-request-001"},"labels":[{"name":"awswaf:managed:token:absent"}]}'
+        expect:
+          tokens:
+            format_version: 1
+            action: "BLOCK"
+            terminating_rule_id: "STMTest_SQLi_XSS"
+            client_ip: "1.1.1.1"
+            country: "AU"
+            uri: "/"
+            http_method: "POST"
+            request_id: "aws-waf-request-001"
+          absent_tokens:
+            - service
+            - srcip
