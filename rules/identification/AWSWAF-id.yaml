@@ -1,0 +1,15 @@
+messages:
+  - id: 1c507cb9-91d4-4024-871d-49f38ee08f36
+    name: AWS WAF
+    message_filter:
+      - pattern: '^\{.*"formatVersion":1.*"action":"(?<action>[A-Z]+)".*"clientIp":"(?<client_ip>[^"]+)".*\}$'
+    sections:
+      - id: aws_waf_payload
+        parser: json
+        ruleset: AWSWAFJson
+    examples:
+      - message: '{"timestamp":1576280412771,"formatVersion":1,"webaclId":"arn:aws:wafv2:ap-southeast-2:111122223333:regional/webacl/STMTest/1EXAMPLE-2ARN-3ARN-4ARN-123456EXAMPLE","terminatingRuleId":"STMTest_SQLi_XSS","terminatingRuleType":"REGULAR","action":"BLOCK","terminatingRuleMatchDetails":[{"conditionType":"SQL_INJECTION","sensitivityLevel":"HIGH","location":"HEADER","matchedData":["10","AND","1"]}],"httpSourceName":"-","httpSourceId":"-","ruleGroupList":[],"rateBasedRuleList":[],"nonTerminatingMatchingRules":[],"httpRequest":{"clientIp":"1.1.1.1","country":"AU","headers":[{"name":"Host","value":"localhost:1989"},{"name":"User-Agent","value":"curl/7.61.1"},{"name":"Accept","value":"*/*"},{"name":"x-stm-test","value":"10 AND 1=1"}],"uri":"/","args":"","httpVersion":"HTTP/1.1","httpMethod":"POST","requestId":"aws-waf-request-001"},"labels":[{"name":"awswaf:managed:token:absent"}]}'
+        expect:
+          captures:
+            action: "BLOCK"
+            client_ip: "1.1.1.1"

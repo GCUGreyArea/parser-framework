@@ -1,0 +1,34 @@
+rules:
+  - id: 7c55684a-8746-43d8-a34a-130ebd3ec0d4
+    name: CheckPointPolicyTagRegex
+    parser: regex
+    bindings:
+      - 46432110-a2a1-4bc9-8e78-fe30591375e1
+    tokens:
+      __policy_id_tag.product: string
+      __policy_id_tag.db_tag: string
+      __policy_id_tag.mgmt: string
+      __policy_id_tag.date: int
+      __policy_id_tag.policy_name: string
+    regex_tokens:
+      - name: __policy_id_tag.product
+        pattern: '^product=([^\[]+)'
+      - name: __policy_id_tag.db_tag
+        pattern: 'db_tag=\{([^}]+)\}'
+      - name: __policy_id_tag.mgmt
+        pattern: ';mgmt=([^;]+)'
+      - name: __policy_id_tag.date
+        pattern: ';date=([0-9]+)'
+      - name: __policy_id_tag.policy_name
+        pattern: ';policy_name=([^\\]+)\\\]'
+    examples:
+      - message: 'product=VPN-1 & FireWall-1[db_tag={599255D7-8B94-704F-9D9A-CFA3719EA5CE};mgmt=bos1cpmgmt01;date=1630333752;policy_name=<policy>\]'
+        expect:
+          tokens:
+            __policy_id_tag.product: 'VPN-1 & FireWall-1'
+            __policy_id_tag.db_tag: '599255D7-8B94-704F-9D9A-CFA3719EA5CE'
+            __policy_id_tag.mgmt: 'bos1cpmgmt01'
+            __policy_id_tag.date: 1630333752
+            __policy_id_tag.policy_name: '<policy>'
+          absent_tokens:
+            - srcip

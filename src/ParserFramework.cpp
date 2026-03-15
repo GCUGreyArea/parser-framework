@@ -1,40 +1,26 @@
 #include "parser_framework/ParserFramework.hpp"
 
-#include <regex>
+#include <algorithm>
+#include <memory>
+#include <optional>
 #include <sstream>
-#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
-#include "jqpath.h"
-#include "jsmn.hpp"
+#include "parser_framework/ParsingEngines.hpp"
 
 namespace parser_framework {
 
 namespace {
 
-struct SectionSlice {
-    std::string text;
-    std::size_t start {0};
-    std::size_t end {0};
+struct RenderNode {
+    std::optional<std::string> value;
+    std::vector<std::string> child_order;
+    std::unordered_map<std::string, std::unique_ptr<RenderNode>> children;
 };
-
-struct MessageMatch {
-    bool matched {false};
-    std::map<std::string, std::string> captures;
-};
-
-std::string first_non_empty_capture(const std::smatch& match, std::size_t begin) {
-    for (std::size_t i = begin; i < match.size(); ++i) {
-        if (match[i].matched) {
-            return match[i].str();
-        }
-    }
-
-    return {};
-}
 
 std::string escape_json_string(const std::string& value) {
     std::ostringstream stream;
@@ -70,72 +56,114 @@ std::string escape_json_string(const std::string& value) {
     return stream.str();
 }
 
-std::string json_token_to_string(const std::string& json, const jsmntok_t* token) {
-    if (token == nullptr || token->start < 0 || token->end < token->start) {
-        return {};
+void append_indent(std::ostringstream& stream, std::size_t depth) {
+    for (std::size_t i = 0; i < depth; ++i) {
+        stream << "  ";
     }
-
-    std::string value = json.substr(static_cast<std::size_t>(token->start),
-        static_cast<std::size_t>(token->end - token->start));
-    if (token->type == JSMN_STRING && value.size() >= 2 && value.front() == '"' && value.back() == '"') {
-        return value.substr(1, value.size() - 2);
-    }
-
-    return value;
 }
 
-std::vector<SectionSlice> locate_slices(const std::string& text, std::size_t base_offset,
-    const SectionRule& section, std::vector<std::string>& errors) {
-    std::vector<SectionSlice> slices;
-
-    if (!section.locator_pattern.has_value()) {
-        slices.push_back(SectionSlice{text, base_offset, base_offset + text.size()});
-        return slices;
+void record_matched_rule_id(ParseResult& result, const std::string& rule_id) {
+    if (rule_id.empty()) {
+        return;
     }
 
-    try {
-        std::regex locator(*section.locator_pattern);
+    if (std::find(result.token_extraction.begin(), result.token_extraction.end(), rule_id) ==
+        result.token_extraction.end()) {
+        result.token_extraction.push_back(rule_id);
+    }
+}
 
-        if (section.allow_multiple) {
-            for (std::sregex_iterator it(text.begin(), text.end(), locator), end; it != end; ++it) {
-                const std::smatch& match = *it;
-                if (section.locator_group >= match.size() || !match[section.locator_group].matched) {
-                    continue;
-                }
+void remember_child_order(RenderNode& node, const std::string& child_name) {
+    if (node.children.find(child_name) == node.children.end()) {
+        node.child_order.push_back(child_name);
+    }
+}
 
-                const std::size_t local_start = static_cast<std::size_t>(match.position(section.locator_group));
-                const std::size_t local_length = static_cast<std::size_t>(match.length(section.locator_group));
-                slices.push_back(SectionSlice{
-                    match[section.locator_group].str(),
-                    base_offset + local_start,
-                    base_offset + local_start + local_length
-                });
-            }
-        } else {
-            std::smatch match;
-            if (std::regex_search(text, match, locator)) {
-                if (section.locator_group < match.size() && match[section.locator_group].matched) {
-                    const std::size_t local_start = static_cast<std::size_t>(match.position(section.locator_group));
-                    const std::size_t local_length = static_cast<std::size_t>(match.length(section.locator_group));
-                    slices.push_back(SectionSlice{
-                        match[section.locator_group].str(),
-                        base_offset + local_start,
-                        base_offset + local_start + local_length
-                    });
-                }
-            }
+void insert_render_token(RenderNode& root,
+    const std::string& token_name,
+    const std::string& token_value) {
+    std::size_t start = 0;
+    RenderNode* current = &root;
+
+    while (start != std::string::npos) {
+        const std::size_t dot = token_name.find('.', start);
+        const std::string segment = token_name.substr(start,
+            dot == std::string::npos ? std::string::npos : dot - start);
+        remember_child_order(*current, segment);
+        std::unique_ptr<RenderNode>& child = current->children[segment];
+        if (!child) {
+            child = std::make_unique<RenderNode>();
         }
-    } catch (const std::regex_error& ex) {
-        errors.push_back("Invalid locator regex for section [" + section.id + "]: " + ex.what());
+        current = child.get();
+        if (dot == std::string::npos) {
+            current->value = token_value;
+            return;
+        }
+        start = dot + 1;
+    }
+}
+
+void render_node_as_json(std::ostringstream& stream, const RenderNode& node, std::size_t depth);
+
+void render_object_children(std::ostringstream& stream, const RenderNode& node, std::size_t depth) {
+    bool first_entry = true;
+
+    if (node.value.has_value()) {
+        append_indent(stream, depth);
+        stream << "\"raw\": \"" << escape_json_string(*node.value) << "\"";
+        first_entry = false;
     }
 
-    return slices;
+    for (const auto& child_name : node.child_order) {
+        auto child_it = node.children.find(child_name);
+        if (child_it == node.children.end()) {
+            continue;
+        }
+
+        if (!first_entry) {
+            stream << ",\n";
+        }
+        append_indent(stream, depth);
+        stream << "\"" << escape_json_string(child_name) << "\": ";
+        render_node_as_json(stream, *child_it->second, depth);
+        first_entry = false;
+    }
+
+    if (!first_entry) {
+        stream << "\n";
+    }
+}
+
+void render_node_as_json(std::ostringstream& stream, const RenderNode& node, std::size_t depth) {
+    if (node.children.empty()) {
+        stream << "\"" << escape_json_string(node.value.value_or(std::string{})) << "\"";
+        return;
+    }
+
+    stream << "{\n";
+    render_object_children(stream, node, depth + 1);
+    append_indent(stream, depth);
+    stream << "}";
+}
+
+RenderNode build_render_tree(const ParseResult& result) {
+    RenderNode root;
+    std::unordered_set<std::string> emitted_names;
+    for (const auto& token : result.tokens) {
+        if (!emitted_names.insert(token.name).second) {
+            continue;
+        }
+        insert_render_token(root, token.name, token.value);
+    }
+
+    return root;
 }
 
 std::vector<SectionSlice> resolve_section_slices(const std::string& message,
     const SectionRule& section,
     const std::map<std::string, std::string>& captures,
-    std::vector<std::string>& errors) {
+    std::vector<std::string>& errors,
+    const RegexParsingEngine& regex_engine) {
     auto capture_it = captures.find(section.extract_name);
     if (capture_it != captures.end()) {
         const std::string& slice = capture_it->second;
@@ -149,204 +177,71 @@ std::vector<SectionSlice> resolve_section_slices(const std::string& message,
         return {};
     }
 
-    return locate_slices(message, 0, section, errors);
+    return regex_engine.locate_slices(message, 0, section, errors);
 }
 
-void parse_regex_tokens(const SectionRule& section, const SectionSlice& slice, ParseResult& result) {
-    for (const auto& token_rule : section.regex_tokens) {
-        try {
-            std::regex regex(token_rule.pattern);
-            std::smatch match;
+bool parse_section_slices(const SectionRule& section,
+    const std::vector<SectionSlice>& slices,
+    ParseResult& result,
+    const RegexParsingEngine& regex_engine,
+    const KVParsingEngine& kv_engine,
+    const JSONParsingEngine& json_engine);
 
-            if (!std::regex_search(slice.text, match, regex)) {
-                continue;
-            }
-
-            if (token_rule.group >= match.size() || !match[token_rule.group].matched) {
-                continue;
-            }
-
-            const std::size_t local_start = static_cast<std::size_t>(match.position(token_rule.group));
-            const std::size_t local_length = static_cast<std::size_t>(match.length(token_rule.group));
-
-            result.tokens.push_back(Token{
-                token_rule.name,
-                match[token_rule.group].str(),
-                section.id,
-                "regex",
-                {},
-                slice.start + local_start,
-                slice.start + local_start + local_length
-            });
-        } catch (const std::regex_error& ex) {
-            result.errors.push_back("Invalid token regex for section [" + section.id + "]: " + ex.what());
+bool dispatch_section(const SectionRule& section,
+    const SectionSlice& slice,
+    ParseResult& result,
+    const RegexParsingEngine& regex_engine,
+    const KVParsingEngine& kv_engine,
+    const JSONParsingEngine& json_engine) {
+    switch (section.kind) {
+    case SectionKind::FREE_TEXT:
+        return regex_engine.parse_section(section, slice, result);
+    case SectionKind::KV:
+        return kv_engine.parse_section(section, slice, result);
+    case SectionKind::JSON:
+        return json_engine.parse_section(section, slice, result);
+    case SectionKind::MIXED: {
+        bool matched = false;
+        for (const auto& child : section.children) {
+            const std::vector<SectionSlice> child_slices =
+                regex_engine.locate_slices(slice.text, slice.start, child, result.errors);
+            matched = parse_section_slices(child, child_slices, result, regex_engine, kv_engine, json_engine) ||
+                matched;
         }
+        return matched;
     }
+    }
+
+    return false;
 }
 
-void parse_kv_tokens(const SectionRule& section, const SectionSlice& slice, ParseResult& result) {
-    static const std::regex kv_regex(
-        R"KV(([A-Za-z0-9_.-]+)\s*[:=]\s*(?:"([^"]*)"|'([^']*)'|\[([^\]]*)\]|([^;\s\]]+)))KV");
+bool parse_section_slices(const SectionRule& section,
+    const std::vector<SectionSlice>& slices,
+    ParseResult& result,
+    const RegexParsingEngine& regex_engine,
+    const KVParsingEngine& kv_engine,
+    const JSONParsingEngine& json_engine) {
+    bool matched = false;
 
-    std::unordered_map<std::string, std::string> declared;
-    for (const auto& token : section.declared_tokens) {
-        declared.emplace(token.name, token.type);
-    }
-
-    for (std::sregex_iterator it(slice.text.begin(), slice.text.end(), kv_regex), end; it != end; ++it) {
-        const std::smatch& match = *it;
-        const std::string token_name = match[1].str();
-        if (!declared.empty() && declared.find(token_name) == declared.end()) {
-            continue;
-        }
-
-        const std::string value = first_non_empty_capture(match, 2);
-        const std::size_t local_start = static_cast<std::size_t>(match.position(0));
-        const std::size_t local_end = local_start + static_cast<std::size_t>(match.length(0));
-
-        result.tokens.push_back(Token{
-            token_name,
-            value,
-            section.id,
-            "kv",
-            token_name,
-            slice.start + local_start,
-            slice.start + local_end
-        });
-    }
-
-    parse_regex_tokens(section, slice, result);
-}
-
-bool json_match_succeeds(const SectionRule& section, jsmn_parser& parser, const std::string& json,
-    ParseResult& result) {
-    for (const auto& match_rule : section.json_matches) {
-        struct jqpath* path = jsonpath_parse_string(match_rule.path.c_str());
-        if (path == nullptr) {
-            result.errors.push_back("Failed to parse JSONPath [" + match_rule.path + "]");
-            return false;
-        }
-
-        JQ* value = parser.get_path(path);
-        const jsmntok_t* token = value == nullptr ? nullptr : value->get_token();
-        const std::string rendered = json_token_to_string(json, token);
-        jqpath_close_path(path);
-
-        if (token == nullptr) {
-            return false;
-        }
-
-        if (match_rule.equals.has_value() && rendered != *match_rule.equals) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-void parse_json_tokens(const SectionRule& section, const SectionSlice& slice, ParseResult& result) {
-    jsmn_parser parser(slice.text.c_str(), 2);
-    const int parse_ret = parser.parse();
-    if (parse_ret < 0) {
-        std::ostringstream stream;
-        stream << "JSON parse failed in section [" << section.id << "] with error " << parse_ret;
-        result.errors.push_back(stream.str());
-        return;
-    }
-
-    if (!json_match_succeeds(section, parser, slice.text, result)) {
-        return;
-    }
-
-    for (const auto& token_rule : section.json_tokens) {
-        struct jqpath* path = jsonpath_parse_string(token_rule.path.c_str());
-        if (path == nullptr) {
-            result.errors.push_back("Failed to parse JSONPath [" + token_rule.path + "]");
-            continue;
-        }
-
-        JQ* value = parser.get_path(path);
-        const jsmntok_t* token = value == nullptr ? nullptr : value->get_token();
-        if (token != nullptr) {
-            result.tokens.push_back(Token{
-                token_rule.name,
-                json_token_to_string(slice.text, token),
-                section.id,
-                "jsonpath",
-                token_rule.path,
-                slice.start + static_cast<std::size_t>(token->start),
-                slice.start + static_cast<std::size_t>(token->end)
-            });
-        }
-
-        jqpath_close_path(path);
-    }
-}
-
-void parse_section(const SectionRule& section, const SectionSlice& parent_slice, ParseResult& result) {
-    const std::vector<SectionSlice> slices = locate_slices(parent_slice.text, parent_slice.start, section, result.errors);
     for (const auto& slice : slices) {
-        switch (section.kind) {
-        case SectionKind::FREE_TEXT:
-            parse_regex_tokens(section, slice, result);
-            break;
-        case SectionKind::KV:
-            parse_kv_tokens(section, slice, result);
-            break;
-        case SectionKind::JSON:
-            parse_json_tokens(section, slice, result);
-            break;
-        case SectionKind::MIXED:
-            for (const auto& child : section.children) {
-                parse_section(child, slice, result);
-            }
-            break;
-        }
+        matched = dispatch_section(section, slice, result, regex_engine, kv_engine, json_engine) || matched;
     }
+
+    if (matched) {
+        record_matched_rule_id(result, section.ruleset_id);
+    }
+
+    return matched;
 }
 
-void parse_section_from_message(const std::string& message,
-    const SectionRule& section,
-    const std::map<std::string, std::string>& captures,
-    ParseResult& result) {
-    const std::vector<SectionSlice> slices = resolve_section_slices(message, section, captures, result.errors);
-    for (const auto& slice : slices) {
-        switch (section.kind) {
-        case SectionKind::FREE_TEXT:
-            parse_regex_tokens(section, slice, result);
-            break;
-        case SectionKind::KV:
-            parse_kv_tokens(section, slice, result);
-            break;
-        case SectionKind::JSON:
-            parse_json_tokens(section, slice, result);
-            break;
-        case SectionKind::MIXED:
-            for (const auto& child : section.children) {
-                parse_section(child, slice, result);
-            }
-            break;
-        }
-    }
-}
-
-MessageMatch message_matches(const MessageRule& rule, const std::string& message) {
+FilterMatch message_matches(const MessageRule& rule,
+    const std::string& message,
+    const RegexParsingEngine& regex_engine,
+    std::vector<std::string>& errors) {
     for (const auto& filter : rule.filters) {
-        try {
-            std::regex anchor(filter.pattern);
-            std::smatch match;
-            if (std::regex_search(message, match, anchor)) {
-                MessageMatch result;
-                result.matched = true;
-                for (const auto& capture : filter.captures) {
-                    if (capture.group < match.size() && match[capture.group].matched) {
-                        result.captures[capture.name] = match[capture.group].str();
-                    }
-                }
-                return result;
-            }
-        } catch (const std::regex_error&) {
-            return {};
+        FilterMatch match = regex_engine.match_message_filter(filter, message, errors);
+        if (match.matched) {
+            return match;
         }
     }
 
@@ -364,9 +259,12 @@ void ParserFramework::add_message_rule(MessageRule message_rule) {
 
 ParseResult ParserFramework::parse_message(const std::string& message) const {
     ParseResult result;
+    const RegexParsingEngine regex_engine;
+    const KVParsingEngine kv_engine;
+    const JSONParsingEngine json_engine;
 
     for (const auto& rule : m_message_rules) {
-        const MessageMatch match = message_matches(rule, message);
+        FilterMatch match = message_matches(rule, message, regex_engine, result.errors);
         if (!match.matched) {
             continue;
         }
@@ -376,9 +274,12 @@ ParseResult ParserFramework::parse_message(const std::string& message) const {
         result.message_rule_name = rule.name;
         result.event_name = rule.name;
         result.event_pattern_id = rule.id;
+        record_matched_rule_id(result, rule.id);
 
         for (const auto& section : rule.sections) {
-            parse_section_from_message(message, section, match.captures, result);
+            const std::vector<SectionSlice> slices =
+                resolve_section_slices(message, section, match.captures, result.errors, regex_engine);
+            parse_section_slices(section, slices, result, regex_engine, kv_engine, json_engine);
         }
 
         return result;
@@ -401,61 +302,81 @@ std::vector<ParseResult> ParserFramework::parse_messages(const std::vector<std::
 
 std::string render_results_as_json(const std::vector<ParseResult>& results) {
     std::ostringstream stream;
-    stream << "{\"parsed\":[";
+    stream << "{\n";
+    append_indent(stream, 1);
+    stream << "\"parsed\": [\n";
 
     for (std::size_t i = 0; i < results.size(); ++i) {
         const ParseResult& result = results[i];
-        if (i != 0) {
-            stream << ",";
-        }
-
-        stream << "{";
+        append_indent(stream, 2);
+        stream << "{\n";
         if (result.matched) {
-            stream << "\"rule\":{"
-                   << "\"id\":\"" << escape_json_string(result.message_rule_id) << "\","
-                   << "\"name\":\"" << escape_json_string(result.message_rule_name) << "\""
-                   << "},";
-            stream << "\"event\":{"
-                   << "\"name\":\"" << escape_json_string(result.event_name) << "\","
-                   << "\"pattern_id\":\"" << escape_json_string(result.event_pattern_id) << "\""
-                   << "},";
-            stream << "\"tokens\":{";
-
-            std::unordered_set<std::string> emitted_names;
-            bool first_token = true;
-            for (const auto& token : result.tokens) {
-                if (!emitted_names.insert(token.name).second) {
-                    continue;
+            append_indent(stream, 3);
+            stream << "\"rule\": {\n";
+            append_indent(stream, 4);
+            stream << "\"id\": \"" << escape_json_string(result.message_rule_id) << "\",\n";
+            append_indent(stream, 4);
+            stream << "\"name\": \"" << escape_json_string(result.message_rule_name) << "\",\n";
+            append_indent(stream, 4);
+            stream << "\"token_extraction\": [";
+            for (std::size_t idx = 0; idx < result.token_extraction.size(); ++idx) {
+                if (idx != 0) {
+                    stream << ", ";
                 }
-
-                if (!first_token) {
-                    stream << ",";
-                }
-
-                stream << "\"" << escape_json_string(token.name) << "\":"
-                       << "\"" << escape_json_string(token.value) << "\"";
-                first_token = false;
+                stream << "\"" << escape_json_string(result.token_extraction[idx]) << "\"";
             }
+            stream << "]\n";
+            append_indent(stream, 3);
+            stream << "},\n";
+
+            append_indent(stream, 3);
+            stream << "\"event\": {\n";
+            append_indent(stream, 4);
+            stream << "\"name\": \"" << escape_json_string(result.event_name) << "\",\n";
+            append_indent(stream, 4);
+            stream << "\"pattern_id\": \"" << escape_json_string(result.event_pattern_id) << "\"\n";
+            append_indent(stream, 3);
+            stream << "},\n";
+
+            append_indent(stream, 3);
+            stream << "\"tokens\": {\n";
+            const RenderNode token_tree = build_render_tree(result);
+            render_object_children(stream, token_tree, 4);
+            append_indent(stream, 3);
             stream << "}";
         } else {
-            stream << "\"rule\":\"null\"";
+            append_indent(stream, 3);
+            stream << "\"rule\": null";
         }
 
         if (!result.errors.empty()) {
-            stream << ",\"errors\":[";
+            stream << ",\n";
+            append_indent(stream, 3);
+            stream << "\"errors\": [\n";
             for (std::size_t idx = 0; idx < result.errors.size(); ++idx) {
                 if (idx != 0) {
-                    stream << ",";
+                    stream << ",\n";
                 }
+                append_indent(stream, 4);
                 stream << "\"" << escape_json_string(result.errors[idx]) << "\"";
             }
+            stream << "\n";
+            append_indent(stream, 3);
             stream << "]";
         }
 
+        stream << "\n";
+        append_indent(stream, 2);
         stream << "}";
+        if (i + 1 != results.size()) {
+            stream << ",";
+        }
+        stream << "\n";
     }
 
-    stream << "]}";
+    append_indent(stream, 1);
+    stream << "]\n";
+    stream << "}";
     return stream.str();
 }
 
