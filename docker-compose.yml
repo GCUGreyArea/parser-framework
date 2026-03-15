@@ -1,0 +1,99 @@
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: parser-framework-mongo
+    restart: unless-stopped
+    command: ["mongod", "--bind_ip_all", "--replSet", "rs0", "--auth"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example-root-password
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "mongodb://root:example-root-password@localhost:27017/admin", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - mongo_data:/data/db
+
+  mongo-init:
+    image: mongo:7.0
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: "no"
+    environment:
+      MONGO_ROOT_USERNAME: root
+      MONGO_ROOT_PASSWORD: example-root-password
+      INGEST_MONGO_USERNAME: ingest_user
+      INGEST_MONGO_PASSWORD: ingest-password
+      RESULTS_MONGO_USERNAME: results_user
+      RESULTS_MONGO_PASSWORD: results-password
+      PARSER_MONGO_USERNAME: parser_user
+      PARSER_MONGO_PASSWORD: parser-password
+    volumes:
+      - ./docker/mongo/init-replica.sh:/docker/init-replica.sh:ro
+    entrypoint: ["/bin/bash", "/docker/init-replica.sh"]
+
+  ingest-api:
+    build:
+      context: .
+      dockerfile: stack/Dockerfile.api
+    depends_on:
+      mongo-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    command: ["python", "-m", "stack.ingest_api.app"]
+    environment:
+      PYTHONPATH: /app
+      INGEST_API_KEY: ingest-api-key
+      INGEST_MONGO_URI: mongodb://ingest_user:ingest-password@mongo:27017/ingestion?authSource=ingestion&replicaSet=rs0
+      INGEST_DB: ingestion
+      INGEST_COLLECTION: bundles
+    ports:
+      - "8080:8080"
+
+  results-api:
+    build:
+      context: .
+      dockerfile: stack/Dockerfile.api
+    depends_on:
+      mongo-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    command: ["python", "-m", "stack.results_api.app"]
+    environment:
+      PYTHONPATH: /app
+      RESULTS_API_KEY: results-api-key
+      RESULTS_MONGO_URI: mongodb://results_user:results-password@mongo:27017/analysis?authSource=analysis&replicaSet=rs0
+      ANALYSIS_DB: analysis
+      PARSED_COLLECTION: parsed_results
+      REPORT_COLLECTION: report_results
+    ports:
+      - "8081:8081"
+
+  parser-worker:
+    build:
+      context: .
+      dockerfile: stack/Dockerfile.worker
+    depends_on:
+      mongo-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    environment:
+      PYTHONPATH: /app
+      PARSER_MONGO_URI: mongodb://parser_user:parser-password@mongo:27017/ingestion?authSource=admin&replicaSet=rs0
+      INGEST_DB: ingestion
+      INGEST_COLLECTION: bundles
+      ANALYSIS_DB: analysis
+      PARSED_COLLECTION: parsed_results
+      REPORT_COLLECTION: report_results
+      PARSER_BINARY: /app/build/release/example_ingestion_bundle
+      RULES_PATH: /app/rules
+      REPORT_RULES_PATH: /app/report_rules
+      CHANGE_STREAM_MAX_AWAIT_MS: "1000"
+      POLL_INTERVAL_SECONDS: "2"
+
+volumes:
+  mongo_data:

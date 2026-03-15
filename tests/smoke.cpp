@@ -3,10 +3,13 @@
 
 #include <gtest/gtest.h>
 
+#include "parser_framework/IngestionBundle.hpp"
+#include "parser_framework/IngestionPipeline.hpp"
 #include "parser_framework/MessageLoader.hpp"
 #include "parser_framework/ParserFramework.hpp"
 #include "parser_framework/ReportAnalyzer.hpp"
 #include "parser_framework/RuleLoader.hpp"
+#include "parser_framework/utils/Args.hpp"
 
 using namespace parser_framework;
 
@@ -127,6 +130,28 @@ TEST(ParserFramework, RendersNestedTokenObjectsForDottedNames) {
     EXPECT_NE(json.find("\"date\": \"1630333752\""), std::string::npos);
     EXPECT_NE(json.find("\"policy_name\": \"<policy>\""), std::string::npos);
     EXPECT_EQ(json.find("\"__policy_id_tag.product\""), std::string::npos);
+}
+
+TEST(Args, LoadsSingleAndMultiValueFlags) {
+    const char* argv[] = {
+        "example_parser",
+        "--rules", "custom-rules",
+        "--messages", "messages/aws-waf/sqli-block.json",
+        "messages/cloudflare/log4shell-header-block.json",
+        "-m", "messages/suricata/cryptfile2-alert.json"
+    };
+
+    utils::Args args(static_cast<int>(sizeof(argv) / sizeof(argv[0])), argv);
+    args.add_string_value("-r", "--rules", "rules");
+    args.add_string_values("-m", "--messages", {"messages"});
+
+    EXPECT_EQ(args.get_string_value("-r"), "custom-rules");
+
+    const std::vector<std::string> messages = args.get_string_values("-m");
+    ASSERT_EQ(messages.size(), 3u);
+    EXPECT_EQ(messages[0], "messages/aws-waf/sqli-block.json");
+    EXPECT_EQ(messages[1], "messages/cloudflare/log4shell-header-block.json");
+    EXPECT_EQ(messages[2], "messages/suricata/cryptfile2-alert.json");
 }
 
 TEST(RuleLoader, LoadsCheckPointRulesAndParsesMessage) {
@@ -371,4 +396,43 @@ TEST(ReportAnalyzer, GeneratesBreachReportsFromParsedOutput) {
     EXPECT_NE(json.find("\"systems\": {\n          \"count\": \"2\""), std::string::npos);
     EXPECT_NE(json.find("\"system\": \"suricata\""), std::string::npos);
     EXPECT_EQ(json.find("\"report\": {\n        \"report\":"), std::string::npos);
+}
+
+TEST(IngestionLoader, LoadsAttributedBundle) {
+    const IngestionBundle bundle = IngestionLoader::load_bundle("bundles/multi-tenant-ingestion.json");
+
+    EXPECT_EQ(bundle.schema_version, "1.0.0");
+    EXPECT_EQ(bundle.storage.backend, "mongodb");
+    ASSERT_EQ(bundle.organizations.size(), 4u);
+    ASSERT_EQ(bundle.networks.size(), 3u);
+    ASSERT_EQ(bundle.systems.size(), 4u);
+    ASSERT_EQ(bundle.collections.size(), 4u);
+    EXPECT_EQ(bundle.collections[0].system_id, "sys-cloudflare-waf");
+    EXPECT_EQ(bundle.collections[2].attribution.operator_org_ids[0], "org-bae");
+    EXPECT_EQ(bundle.systems[1].attribution.provider_org_ids[0], "org-aws");
+}
+
+TEST(IngestionPipeline, ProcessesBundleAndGeneratesBundleReports) {
+    const IngestionBundle bundle = IngestionLoader::load_bundle("bundles/multi-tenant-ingestion.json");
+    IngestionPipeline pipeline(
+        ParserFramework(RuleLoader::load_rules("rules")),
+        ReportAnalyzer(ReportRuleLoader::load_rules("report_rules")));
+
+    const BundleProcessingResult result = pipeline.process(bundle);
+    ASSERT_EQ(result.collections.size(), 4u);
+    ASSERT_EQ(result.reports.size(), 5u);
+
+    EXPECT_TRUE(result.collections[0].system.has_value());
+    EXPECT_TRUE(result.collections[0].network.has_value());
+    EXPECT_TRUE(result.collections[0].site.has_value());
+    ASSERT_EQ(result.collections[0].parsed.size(), 1u);
+    EXPECT_EQ(result.collections[0].parsed[0].message_rule_name, "Cloudflare Firewall Event");
+
+    const std::string json = render_bundle_processing_result_as_json(result);
+    EXPECT_NE(json.find("\"bundle_id\": \"bundle-2026-03-15-demo-001\""), std::string::npos);
+    EXPECT_NE(json.find("\"backend\": \"mongodb\""), std::string::npos);
+    EXPECT_NE(json.find("\"name\": \"Customer Secure Network\""), std::string::npos);
+    EXPECT_NE(json.find("\"event\": \"multi_system_breach_attempt\""), std::string::npos);
+    EXPECT_NE(json.find("\"systems\": {"), std::string::npos);
+    EXPECT_NE(json.find("\"count\": \"2\""), std::string::npos);
 }

@@ -40,17 +40,19 @@ LIB_RPATH := -Wl,-rpath,$(PROJECT_ROOT)/$(BUILD_DIR) -Wl,-rpath,$(SUBPROJECT_JSM
 FRAMEWORK_LDFLAGS := $(SANITIZE_FLAGS) -L$(SUBPROJECT_JSMN_BUILD_DIR) -ljsmn -L$(SUBPROJECT_REGEX_BUILD_DIR) -lparser -lre2 -lhs $(YAML_CPP_LIBS) -Wl,-rpath,$(SUBPROJECT_JSMN_BUILD_DIR) -Wl,-rpath,$(SUBPROJECT_REGEX_BUILD_DIR)
 APP_LDFLAGS := $(EXTRA_APP_LIBS) $(SANITIZE_FLAGS) -L$(BUILD_DIR) -lparser_framework -L$(SUBPROJECT_JSMN_BUILD_DIR) -ljsmn -L$(SUBPROJECT_REGEX_BUILD_DIR) -lparser -lre2 -lhs $(YAML_CPP_LIBS) $(LIB_RPATH)
 
-FRAMEWORK_OBJ := $(BUILD_DIR)/src/DynamicPropertyEngine.o $(BUILD_DIR)/src/JSONParsingEngine.o $(BUILD_DIR)/src/KVParsingEngine.o $(BUILD_DIR)/src/MessageLoader.o $(BUILD_DIR)/src/ParserFramework.o $(BUILD_DIR)/src/RegexParsingEngine.o $(BUILD_DIR)/src/ReportAnalyzer.o $(BUILD_DIR)/src/RuleLoader.o
+FRAMEWORK_OBJ := $(BUILD_DIR)/src/DynamicPropertyEngine.o $(BUILD_DIR)/src/IngestionBundle.o $(BUILD_DIR)/src/IngestionPipeline.o $(BUILD_DIR)/src/JSONParsingEngine.o $(BUILD_DIR)/src/KVParsingEngine.o $(BUILD_DIR)/src/MessageLoader.o $(BUILD_DIR)/src/ParserFramework.o $(BUILD_DIR)/src/RegexParsingEngine.o $(BUILD_DIR)/src/ReportAnalyzer.o $(BUILD_DIR)/src/RuleLoader.o $(BUILD_DIR)/src/utils/Args.o
 FRAMEWORK_DEP := $(FRAMEWORK_OBJ:.o=.d)
 FRAMEWORK_LIB := $(BUILD_DIR)/libparser_framework.so
 EXAMPLE_BIN := $(BUILD_DIR)/example_parser
 EXAMPLE_DEP := $(BUILD_DIR)/examples/example_parser.d
 REPORT_BIN := $(BUILD_DIR)/example_breach_report
 REPORT_DEP := $(BUILD_DIR)/examples/example_breach_report.d
+INGESTION_BIN := $(BUILD_DIR)/example_ingestion_bundle
+INGESTION_DEP := $(BUILD_DIR)/examples/example_ingestion_bundle.d
 TEST_BIN := $(BUILD_DIR)/test_parser_framework
 TEST_DEP := $(BUILD_DIR)/tests/smoke.d
 
-.PHONY: all clean clean_all clean_subprojects demo example_breach_report example_parser release subprojects test
+.PHONY: all clean clean_all clean_subprojects demo example_breach_report example_ingestion_bundle example_parser release subprojects test test_stack
 
 all: example_parser
 
@@ -58,13 +60,18 @@ demo: example_parser
 
 example_breach_report: subprojects $(REPORT_BIN)
 
+example_ingestion_bundle: subprojects $(INGESTION_BIN)
+
 example_parser: subprojects $(EXAMPLE_BIN)
 
 release:
-	$(MAKE) BUILD_MODE=release example_parser example_breach_report
+	$(MAKE) BUILD_MODE=release example_parser example_breach_report example_ingestion_bundle
 
 test: subprojects $(TEST_BIN)
 	$(RUN_ENV) $(TEST_BIN)
+
+test_stack:
+	python3 -m unittest discover -s stack/tests -v
 
 subprojects:
 	$(MAKE) -C subprojects/jsmn all \
@@ -82,8 +89,17 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)/examples
 	mkdir -p $(BUILD_DIR)/tests
 
+$(BUILD_DIR)/src/utils:
+	mkdir -p $(BUILD_DIR)/src/utils
+
 $(BUILD_DIR)/src/DynamicPropertyEngine.o: $(SRC_DIR)/DynamicPropertyEngine.cpp $(INCLUDE_DIR)/parser_framework/DynamicPropertyEngine.hpp $(INCLUDE_DIR)/parser_framework/ParserFramework.hpp | $(BUILD_DIR)
 	$(CXX) $(FRAMEWORK_CXXFLAGS) $(DEPFLAGS) -c $(SRC_DIR)/DynamicPropertyEngine.cpp -o $(BUILD_DIR)/src/DynamicPropertyEngine.o
+
+$(BUILD_DIR)/src/IngestionBundle.o: $(SRC_DIR)/IngestionBundle.cpp $(INCLUDE_DIR)/parser_framework/IngestionBundle.hpp | $(BUILD_DIR)
+	$(CXX) $(FRAMEWORK_CXXFLAGS) $(DEPFLAGS) -c $(SRC_DIR)/IngestionBundle.cpp -o $(BUILD_DIR)/src/IngestionBundle.o
+
+$(BUILD_DIR)/src/IngestionPipeline.o: $(SRC_DIR)/IngestionPipeline.cpp $(INCLUDE_DIR)/parser_framework/IngestionBundle.hpp $(INCLUDE_DIR)/parser_framework/IngestionPipeline.hpp $(INCLUDE_DIR)/parser_framework/ParserFramework.hpp $(INCLUDE_DIR)/parser_framework/ReportAnalyzer.hpp | $(BUILD_DIR)
+	$(CXX) $(FRAMEWORK_CXXFLAGS) $(DEPFLAGS) -c $(SRC_DIR)/IngestionPipeline.cpp -o $(BUILD_DIR)/src/IngestionPipeline.o
 
 $(BUILD_DIR)/src/JSONParsingEngine.o: $(SRC_DIR)/JSONParsingEngine.cpp $(INCLUDE_DIR)/parser_framework/ParsingEngines.hpp $(INCLUDE_DIR)/parser_framework/ParserFramework.hpp | $(BUILD_DIR)
 	$(CXX) $(FRAMEWORK_CXXFLAGS) $(DEPFLAGS) -c $(SRC_DIR)/JSONParsingEngine.cpp -o $(BUILD_DIR)/src/JSONParsingEngine.o
@@ -106,6 +122,9 @@ $(BUILD_DIR)/src/ReportAnalyzer.o: $(SRC_DIR)/ReportAnalyzer.cpp $(INCLUDE_DIR)/
 $(BUILD_DIR)/src/RuleLoader.o: $(SRC_DIR)/RuleLoader.cpp $(INCLUDE_DIR)/parser_framework/ParsingEngines.hpp $(INCLUDE_DIR)/parser_framework/RuleLoader.hpp $(INCLUDE_DIR)/parser_framework/ParserFramework.hpp | $(BUILD_DIR)
 	$(CXX) $(FRAMEWORK_CXXFLAGS) $(DEPFLAGS) -c $(SRC_DIR)/RuleLoader.cpp -o $(BUILD_DIR)/src/RuleLoader.o
 
+$(BUILD_DIR)/src/utils/Args.o: $(SRC_DIR)/utils/Args.cpp $(INCLUDE_DIR)/parser_framework/utils/Args.hpp | $(BUILD_DIR) $(BUILD_DIR)/src/utils
+	$(CXX) $(FRAMEWORK_CXXFLAGS) $(DEPFLAGS) -c $(SRC_DIR)/utils/Args.cpp -o $(BUILD_DIR)/src/utils/Args.o
+
 $(FRAMEWORK_LIB): $(FRAMEWORK_OBJ)
 	$(CXX) -shared -o $(FRAMEWORK_LIB) $(FRAMEWORK_OBJ) $(FRAMEWORK_LDFLAGS)
 
@@ -114,6 +133,9 @@ $(EXAMPLE_BIN): $(EXAMPLE_DIR)/example_parser.cpp $(FRAMEWORK_LIB) | $(BUILD_DIR
 
 $(REPORT_BIN): $(EXAMPLE_DIR)/example_breach_report.cpp $(FRAMEWORK_LIB) | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(SANITIZE_FLAGS) $(DEPFLAGS) -MF $(REPORT_DEP) -MT $@ $(EXAMPLE_DIR)/example_breach_report.cpp $(APP_LDFLAGS) -o $(REPORT_BIN)
+
+$(INGESTION_BIN): $(EXAMPLE_DIR)/example_ingestion_bundle.cpp $(FRAMEWORK_LIB) | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(SANITIZE_FLAGS) $(DEPFLAGS) -MF $(INGESTION_DEP) -MT $@ $(EXAMPLE_DIR)/example_ingestion_bundle.cpp $(APP_LDFLAGS) -o $(INGESTION_BIN)
 
 $(TEST_BIN): $(TEST_DIR)/smoke.cpp $(FRAMEWORK_LIB) | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(SANITIZE_FLAGS) $(GTEST_CFLAGS) $(DEPFLAGS) -MF $(TEST_DEP) -MT $@ $(TEST_DIR)/smoke.cpp $(APP_LDFLAGS) $(GTEST_LIBS) -o $(TEST_BIN)
@@ -128,4 +150,4 @@ clean_subprojects:
 	$(MAKE) -C subprojects/jsmn clean BUILD_DIR=build/$(BUILD_MODE)
 	$(MAKE) -C subprojects/regex-parser/lib clean BUILD=build/$(BUILD_MODE)
 
--include $(FRAMEWORK_DEP) $(EXAMPLE_DEP) $(REPORT_DEP) $(TEST_DEP)
+-include $(FRAMEWORK_DEP) $(EXAMPLE_DEP) $(REPORT_DEP) $(INGESTION_DEP) $(TEST_DEP)
