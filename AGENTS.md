@@ -121,6 +121,10 @@ Additional rules for this project:
     it for new CLI flag handling.
 46. Whenever functionality changes, update the unit tests and `README.md` in
     the same branch so behavior, coverage, and documentation stay aligned.
+47. The project should support an ingestion-envelope schema that tags log
+    collections with system, network, geography, and organisational ownership
+    and operator metadata so remote producers can submit attributed bundles for
+    local parsing, analysis, and eventual database storage.
 
 - JSMN_LIBRARY: subprojects/jsmn
 - REGEX_PARSER: subprojects/regex-parser
