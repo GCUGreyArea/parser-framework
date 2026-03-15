@@ -76,6 +76,9 @@ db.bundles.createIndex({ status: 1, received_at: 1 });
 db = db.getSiblingDB("analysis");
 db.createCollection("parsed_results");
 db.createCollection("report_results");
+db.createCollection("rule_catalog");
 db.parsed_results.createIndex({ bundle_id: 1 }, { unique: true });
 db.report_results.createIndex({ bundle_id: 1 }, { unique: true });
+db.rule_catalog.createIndex({ rule_type: 1, status: 1, path: 1 });
+db.rule_catalog.createIndex({ content_hash: 1 });
 EOF

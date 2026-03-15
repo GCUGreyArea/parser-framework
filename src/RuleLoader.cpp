@@ -54,9 +54,17 @@ std::filesystem::path resolve_message_path(const std::filesystem::path& base_dir
         return input;
     }
 
-    const fs::path relative = base_dir / input;
-    if (fs::exists(relative)) {
-        return relative;
+    for (fs::path current = base_dir; !current.empty(); ) {
+        const fs::path candidate = current / input;
+        if (fs::exists(candidate)) {
+            return candidate;
+        }
+
+        const fs::path parent = current.parent_path();
+        if (parent == current) {
+            break;
+        }
+        current = parent;
     }
 
     return input;

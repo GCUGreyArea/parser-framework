@@ -813,3 +813,34 @@ assistant> The implementation is validated locally. I’m recording the new cont
 + Updated README with the container architecture, Mongo separation, event flow, and API usage
 + Recorded the new scalable deployment requirement in `AGENTS.md`
 ```
+
+## Session Continuation 16
+
+```text
+user@codex:~$ For the next phase I want to push all rules, once they are read, into another section of the mongo database...
+assistant> I’m treating this as a new feature branch. First I’ll inspect the current stack and rule-loading path, then I’ll add your new rule-synchronization requirement to `AGENTS.md` and implement the Mongo rule catalog update flow around startup.
+assistant> I’ve got the current boundaries. The clean place for this is a shared stack-level rule catalog sync that scans `rules/` and `report_rules/`, stores file metadata plus content hashes in Mongo, and runs during service startup with idempotent upserts.
+assistant> I’ve narrowed the implementation shape: a dedicated Mongo rule catalog, synced by the worker at startup with file path, rule type, mtime, content hash, and raw YAML. I’m updating `AGENTS.md` with that standing requirement now, then I’ll build the shared sync module and wire it into the stack bootstrap path.
+assistant> The implementation is in place. I’m running the stack unit tests first to validate the rule-catalog sync logic and the existing document helpers before I decide whether a wider verification pass is needed.
+assistant> The Python-side tests are clean. I changed the Compose wiring as well, so I’m doing a quick `docker compose config` pass now to make sure the new rule-catalog environment wiring is still valid.
+assistant> The rule-catalog module is covered by tests, but the worker startup path itself is only indirectly exercised so far. I’m doing a syntax compile pass over the stack Python modules now to catch any startup-time syntax issues without needing live Mongo credentials.
+
+user@codex:~$ docker compose up
+assistant> I’m checking the current Compose and Mongo startup files against the validated version, because that failure means the replica-set keyfile fix is not present on this branch.
+assistant> The branch is missing the earlier Docker fix commit. I’m pulling forward the same fixes into this branch now: Mongo keyfile startup, worker image/runtime fixes, the extra Compose asset test, and the README note so `docker compose up` works here too.
+assistant> I’m applying the previously validated fixes directly into this branch, including the worker clean-build/runtime fixes and the rule-example path regression test, because the Compose failure is only the first symptom of the missing Docker patch set.
+assistant> The patch set is in. I’m running the regression tests and a Compose config check first, then I’ll bring the stack up to verify the Mongo keyfile path actually clears the startup failure you hit.
+assistant> The Compose config is correct again, including the Mongo keyfile mount and startup wrapper. The native build is still finishing in the background; once that’s done I’ll restart the stack so we confirm your exact Mongo failure is gone on this branch.
+assistant> The code-side regressions are clear. I’m restarting the Compose stack now so we validate the exact runtime path that failed for you: Mongo startup with replica-set auth enabled.
+assistant> The restart completed cleanly. I’m doing one quick `docker compose ps` check so I can confirm the live service state after the rebuild.
+assistant> The failure was because this branch had lost the earlier Mongo replica-set auth fix. `mongo` was still starting with `--replSet rs0 --auth` but without a keyfile, which MongoDB rejects.
+assistant> The restored patch set is now validated here too, and the stack is healthy again with `mongo`, `ingest-api`, `parser-worker`, and `results-api` all up.
+```
+
+```diff
++ Added worker-startup synchronization of parser and report rule files into `analysis.rule_catalog`
++ Added a shared rule-catalog module with content-hash and timestamp-based change detection
++ Added Mongo bootstrap support and indexes for the new `rule_catalog` collection
++ Restored the Mongo keyfile startup path and worker-image fixes required for this branch's Compose stack
++ Updated tests and README for both the rule-catalog behavior and the corrected Docker runtime path
+```

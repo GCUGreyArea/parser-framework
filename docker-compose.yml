@@ -3,7 +3,7 @@ services:
     image: mongo:7.0
     container_name: parser-framework-mongo
     restart: unless-stopped
-    command: ["mongod", "--bind_ip_all", "--replSet", "rs0", "--auth"]
+    entrypoint: ["/bin/bash", "/docker/run-mongo.sh"]
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: example-root-password
@@ -16,6 +16,8 @@ services:
       retries: 12
     volumes:
       - mongo_data:/data/db
+      - ./docker/mongo/run-mongo.sh:/docker/run-mongo.sh:ro
+      - ./docker/mongo/mongo-keyfile:/docker/mongo/mongo-keyfile:ro
 
   mongo-init:
     image: mongo:7.0
@@ -89,6 +91,7 @@ services:
       ANALYSIS_DB: analysis
       PARSED_COLLECTION: parsed_results
       REPORT_COLLECTION: report_results
+      RULE_CATALOG_COLLECTION: rule_catalog
       PARSER_BINARY: /app/build/release/example_ingestion_bundle
       RULES_PATH: /app/rules
       REPORT_RULES_PATH: /app/report_rules

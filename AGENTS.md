@@ -129,6 +129,10 @@ Additional rules for this project:
     with separate MongoDB, parser-worker, ingestion-API, and results-API
     containers; ingestion and results must use separate REST APIs and distinct
     MongoDB access scopes even when they share one MongoDB instance.
+49. On stack startup, the available parser and report rule files should be
+    synchronised into a MongoDB rule-catalog collection with timestamps and
+    change detection so database copies are updated only when the underlying
+    rule content changes.
 
 - JSMN_LIBRARY: subprojects/jsmn
 - REGEX_PARSER: subprojects/regex-parser

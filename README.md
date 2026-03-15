@@ -196,6 +196,8 @@ The stack uses one MongoDB instance but separates the data logically:
 - `ingestion.bundles`: raw submitted bundles plus processing status
 - `analysis.parsed_results`: parser output grouped by bundle
 - `analysis.report_results`: derived report output grouped by bundle
+- `analysis.rule_catalog`: parser and report rule files with sync timestamps,
+  content hashes, and active/removed state
 
 The default Compose bootstrap creates three users:
 
@@ -211,17 +213,19 @@ MongoDB server is used underneath.
 
 The containerized runtime flow is:
 
-1. A client submits a bundle to `ingest-api`.
-2. `ingest-api` validates it against
+1. `parser-worker` scans `rules/` and `report_rules/` on startup and syncs the
+   active rule files into `analysis.rule_catalog`.
+2. A client submits a bundle to `ingest-api`.
+3. `ingest-api` validates it against
    `schemas/log-ingestion-bundle.schema.json` and inserts it into
    `ingestion.bundles` with status `pending`.
-3. MongoDB emits a change-stream event for the insert.
-4. `parser-worker` claims that bundle, runs
+4. MongoDB emits a change-stream event for the insert.
+5. `parser-worker` claims that bundle, runs
    `example_ingestion_bundle`, and captures the combined parser/report output.
-5. The worker writes parsed output into `analysis.parsed_results` and report
+6. The worker writes parsed output into `analysis.parsed_results` and report
    output into `analysis.report_results`.
-6. The worker marks the original bundle `completed` or `failed`.
-7. Clients query `results-api` for parsed results or reports.
+7. The worker marks the original bundle `completed` or `failed`.
+8. Clients query `results-api` for parsed results or reports.
 
 Because work claiming is status-driven, the worker model can be expanded later
 to multiple replicas without rewriting the document layout.
@@ -457,9 +461,24 @@ The ingestion example supports `-h` / `--help` as well.
 The deployment files are:
 
 - `docker-compose.yml`
+- `docker/mongo/run-mongo.sh`
+- `docker/mongo/mongo-keyfile`
 - `docker/mongo/init-replica.sh`
 - `stack/Dockerfile.api`
 - `stack/Dockerfile.worker`
+
+On startup, the worker also synchronises the contents of `rules/` and
+`report_rules/` into `analysis.rule_catalog`. Each stored rule document keeps
+the rule type, relative path, raw YAML content, a SHA-256 content hash, the
+source file modification timestamp, and catalog timestamps so unchanged files
+are not rewritten unnecessarily.
+
+The Compose stack uses an internal MongoDB replica-set keyfile so Mongo auth
+can remain enabled while change streams are available to the worker. The worker
+image performs its own clean in-container release build of
+`example_ingestion_bundle` and carries the vendored parser shared libraries and
+`fragments/` assets it depends on, so the stack does not rely on host build
+artifacts or host-specific shared-library versions.
 
 To start the stack:
 

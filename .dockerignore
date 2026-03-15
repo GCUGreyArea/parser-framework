@@ -1,0 +1,4 @@
+.git
+build
+subprojects/jsmn/build
+subprojects/regex-parser/lib/build
