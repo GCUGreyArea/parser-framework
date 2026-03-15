@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "parser_framework/DynamicPropertyEngine.hpp"
 #include "parser_framework/ParsingEngines.hpp"
 
 namespace parser_framework {
@@ -185,14 +186,16 @@ bool parse_section_slices(const SectionRule& section,
     ParseResult& result,
     const RegexParsingEngine& regex_engine,
     const KVParsingEngine& kv_engine,
-    const JSONParsingEngine& json_engine);
+    const JSONParsingEngine& json_engine,
+    const DynamicPropertyEngine& property_engine);
 
 bool dispatch_section(const SectionRule& section,
     const SectionSlice& slice,
     ParseResult& result,
     const RegexParsingEngine& regex_engine,
     const KVParsingEngine& kv_engine,
-    const JSONParsingEngine& json_engine) {
+    const JSONParsingEngine& json_engine,
+    const DynamicPropertyEngine& property_engine) {
     switch (section.kind) {
     case SectionKind::FREE_TEXT:
         return regex_engine.parse_section(section, slice, result);
@@ -205,7 +208,14 @@ bool dispatch_section(const SectionRule& section,
         for (const auto& child : section.children) {
             const std::vector<SectionSlice> child_slices =
                 regex_engine.locate_slices(slice.text, slice.start, child, result.errors);
-            matched = parse_section_slices(child, child_slices, result, regex_engine, kv_engine, json_engine) ||
+            matched = parse_section_slices(
+                child,
+                child_slices,
+                result,
+                regex_engine,
+                kv_engine,
+                json_engine,
+                property_engine) ||
                 matched;
         }
         return matched;
@@ -220,15 +230,20 @@ bool parse_section_slices(const SectionRule& section,
     ParseResult& result,
     const RegexParsingEngine& regex_engine,
     const KVParsingEngine& kv_engine,
-    const JSONParsingEngine& json_engine) {
+    const JSONParsingEngine& json_engine,
+    const DynamicPropertyEngine& property_engine) {
     bool matched = false;
 
     for (const auto& slice : slices) {
-        matched = dispatch_section(section, slice, result, regex_engine, kv_engine, json_engine) || matched;
+        matched = dispatch_section(section, slice, result, regex_engine, kv_engine, json_engine, property_engine) ||
+            matched;
     }
 
     if (matched) {
         record_matched_rule_id(result, section.ruleset_id);
+        const std::map<std::string, std::string> properties =
+            property_engine.evaluate(section.dynamic_properties, result, result.errors);
+        result.properties.insert(properties.begin(), properties.end());
     }
 
     return matched;
@@ -262,6 +277,7 @@ ParseResult ParserFramework::parse_message(const std::string& message) const {
     const RegexParsingEngine regex_engine;
     const KVParsingEngine kv_engine;
     const JSONParsingEngine json_engine;
+    const DynamicPropertyEngine property_engine;
 
     for (const auto& rule : m_message_rules) {
         FilterMatch match = message_matches(rule, message, regex_engine, result.errors);
@@ -279,7 +295,7 @@ ParseResult ParserFramework::parse_message(const std::string& message) const {
         for (const auto& section : rule.sections) {
             const std::vector<SectionSlice> slices =
                 resolve_section_slices(message, section, match.captures, result.errors, regex_engine);
-            parse_section_slices(section, slices, result, regex_engine, kv_engine, json_engine);
+            parse_section_slices(section, slices, result, regex_engine, kv_engine, json_engine, property_engine);
         }
 
         return result;
@@ -344,6 +360,19 @@ std::string render_results_as_json(const std::vector<ParseResult>& results) {
             render_object_children(stream, token_tree, 4);
             append_indent(stream, 3);
             stream << "}";
+
+            if (!result.properties.empty()) {
+                stream << ",\n";
+                append_indent(stream, 3);
+                stream << "\"property\": {\n";
+                RenderNode property_tree;
+                for (const auto& property : result.properties) {
+                    insert_render_token(property_tree, property.first, property.second);
+                }
+                render_object_children(stream, property_tree, 4);
+                append_indent(stream, 3);
+                stream << "}";
+            }
         } else {
             append_indent(stream, 3);
             stream << "\"rule\": null";

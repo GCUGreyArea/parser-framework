@@ -1,0 +1,59 @@
+rules:
+  - id: 5b53b8da-8760-4e71-b4bc-62f7d76e37d3
+    name: SuricataEVEJson
+    parser: json
+    bindings:
+      - d6874d8d-1c8a-4ff8-a686-7608e35f3371
+    tokens:
+      timestamp: string
+      flow_id: string
+      event_type: string
+      src_ip: ip
+      src_port: int
+      dest_ip: ip
+      dest_port: int
+      proto: string
+      app_proto: string
+      alert_action: string
+      alert_signature_id: int
+      alert_signature: string
+      alert_category: string
+      alert_severity: int
+    dynamic_properties:
+      - 'if alert_category ?= "Malware" then threat.event = "post_compromise_activity" and threat.source_ip = src_ip and threat.destination_ip = dest_ip and threat.signature = alert_signature and threat.severity = alert_severity'
+    json_matches:
+      - path: "$.event_type"
+        equals: "alert"
+    json_tokens:
+      timestamp: "$.timestamp"
+      flow_id: "$.flow_id"
+      event_type: "$.event_type"
+      src_ip: "$.src_ip"
+      src_port: "$.src_port"
+      dest_ip: "$.dest_ip"
+      dest_port: "$.dest_port"
+      proto: "$.proto"
+      app_proto: "$.app_proto"
+      alert_action: "$.alert.action"
+      alert_signature_id: "$.alert.signature_id"
+      alert_signature: "$.alert.signature"
+      alert_category: "$.alert.category"
+      alert_severity: "$.alert.severity"
+    examples:
+      - message_file: 'messages/suricata/cryptfile2-alert.json'
+        expect:
+          tokens:
+            src_ip: "142.11.240.191"
+            dest_ip: "192.0.2.55"
+            dest_port: 443
+            alert_signature: "ET MALWARE Win32/CryptFile2 / Revenge Ransomware Checkin M3"
+            alert_category: "Malware Command and Control Activity Detected"
+            alert_severity: 1
+          properties:
+            threat.event: "post_compromise_activity"
+            threat.source_ip: "142.11.240.191"
+            threat.destination_ip: "192.0.2.55"
+            threat.signature: "ET MALWARE Win32/CryptFile2 / Revenge Ransomware Checkin M3"
+            threat.severity: 1
+          absent_tokens:
+            - request_id

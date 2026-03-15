@@ -1,0 +1,14 @@
+messages:
+  - id: d6874d8d-1c8a-4ff8-a686-7608e35f3371
+    name: Suricata EVE Alert
+    message_filter:
+      - pattern: '^\{.*"event_type":"alert".*"signature":"(?<signature>[^"]+)".*\}$'
+    sections:
+      - id: suricata_alert_json
+        parser: json
+        ruleset: SuricataEVEJson
+    examples:
+      - message_file: 'messages/suricata/cryptfile2-alert.json'
+        expect:
+          captures:
+            signature: "ET MALWARE Win32/CryptFile2 / Revenge Ransomware Checkin M3"

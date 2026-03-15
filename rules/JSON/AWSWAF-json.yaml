@@ -16,6 +16,8 @@ rules:
       uri: string
       http_method: string
       request_id: string
+    dynamic_properties:
+      - 'if action == "BLOCK" and terminating_rule_id ?= "SQLi" then threat.event = "web_attack" and threat.source_ip = client_ip and threat.rule_name = terminating_rule_id and threat.severity = "high" and threat.outcome = action'
     json_matches:
       - path: "$.formatVersion"
         equals: "1"
@@ -34,7 +36,7 @@ rules:
       http_method: "$.httpRequest.httpMethod"
       request_id: "$.httpRequest.requestId"
     examples:
-      - message: '{"timestamp":1576280412771,"formatVersion":1,"webaclId":"arn:aws:wafv2:ap-southeast-2:111122223333:regional/webacl/STMTest/1EXAMPLE-2ARN-3ARN-4ARN-123456EXAMPLE","terminatingRuleId":"STMTest_SQLi_XSS","terminatingRuleType":"REGULAR","action":"BLOCK","terminatingRuleMatchDetails":[{"conditionType":"SQL_INJECTION","sensitivityLevel":"HIGH","location":"HEADER","matchedData":["10","AND","1"]}],"httpSourceName":"-","httpSourceId":"-","ruleGroupList":[],"rateBasedRuleList":[],"nonTerminatingMatchingRules":[],"httpRequest":{"clientIp":"1.1.1.1","country":"AU","headers":[{"name":"Host","value":"localhost:1989"},{"name":"User-Agent","value":"curl/7.61.1"},{"name":"Accept","value":"*/*"},{"name":"x-stm-test","value":"10 AND 1=1"}],"uri":"/","args":"","httpVersion":"HTTP/1.1","httpMethod":"POST","requestId":"aws-waf-request-001"},"labels":[{"name":"awswaf:managed:token:absent"}]}'
+      - message_file: 'messages/aws-waf/sqli-block.json'
         expect:
           tokens:
             format_version: 1
@@ -45,6 +47,12 @@ rules:
             uri: "/"
             http_method: "POST"
             request_id: "aws-waf-request-001"
+          properties:
+            threat.event: "web_attack"
+            threat.source_ip: "1.1.1.1"
+            threat.rule_name: "STMTest_SQLi_XSS"
+            threat.severity: "high"
+            threat.outcome: "BLOCK"
           absent_tokens:
             - service
             - srcip

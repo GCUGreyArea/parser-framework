@@ -1,0 +1,15 @@
+messages:
+  - id: 5d6ce0b2-55fd-4bb8-b376-786b63d79795
+    name: FortiGate IPS
+    message_filter:
+      - pattern: '^(?<fields>date=\d{4}-\d{2}-\d{2}\s+time=\d{2}:\d{2}:\d{2}.*\btype="utm".*\bsubtype="ips".*)$'
+    sections:
+      - extract: fields
+        parser: kv
+        ruleset: FortiGateIPSKV
+    examples:
+      - message_file: 'messages/fortigate/ips-log4shell.log'
+        expect:
+          captures:
+            fields: >-
+              date=2021-12-13 time=11:59:41 devname="FGT60F" devid="FGT60FTK21000001" eventtime=1639396781000 tz="+0000" logid="0419016384" type="utm" subtype="ips" eventtype="signature" level="alert" severity="critical" vd="root" srcip=198.51.100.25 srcport=53214 srcintf="wan1" srcintfrole="wan" dstip=10.0.0.25 dstport=443 dstintf="lan" dstintfrole="lan" proto=6 service="HTTPS" action="blocked" attack="Apache.Log4j.Error.Log.Remote.Code.Execution" attackid=51006 profile="default" ref="https://www.fortiguard.com/encyclopedia/ips/51006" msg="Attack detected by signature" crscore=50 craction=4096 hostname="vpn.example.com" url="/api/login"

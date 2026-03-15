@@ -12,6 +12,8 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include "parser_framework/DynamicPropertyEngine.hpp"
+#include "parser_framework/MessageLoader.hpp"
 #include "parser_framework/ParsingEngines.hpp"
 
 namespace parser_framework {
@@ -29,8 +31,10 @@ struct ParserRuleSet {
     std::string id;
     std::string name;
     RulesetParserKind kind {RulesetParserKind::KV};
+    std::filesystem::path definition_dir;
     std::unordered_set<std::string> bindings;
     std::vector<DeclaredToken> tokens;
+    std::vector<std::string> dynamic_properties;
     std::vector<RegexTokenRule> regex_tokens;
     std::vector<JsonMatchRule> json_matches;
     std::vector<JsonTokenRule> json_tokens;
@@ -41,6 +45,47 @@ struct IdentificationExample {
     std::string message;
     std::unordered_map<std::string, std::string> captures;
 };
+
+std::filesystem::path resolve_message_path(const std::filesystem::path& base_dir, const std::string& reference) {
+    namespace fs = std::filesystem;
+
+    const fs::path input(reference);
+    if (input.is_absolute()) {
+        return input;
+    }
+
+    const fs::path relative = base_dir / input;
+    if (fs::exists(relative)) {
+        return relative;
+    }
+
+    return input;
+}
+
+std::string load_example_message(const YAML::Node& node, const std::filesystem::path& base_dir) {
+    if (node["message"]) {
+        return node["message"].as<std::string>();
+    }
+
+    if (node["message_file"]) {
+        return MessageLoader::load_message_file(resolve_message_path(base_dir, node["message_file"].as<std::string>()).string());
+    }
+
+    throw std::runtime_error("Example is missing message or message_file");
+}
+
+std::vector<std::string> parse_dynamic_properties(const YAML::Node& node) {
+    std::vector<std::string> expressions;
+    if (!node || !node.IsSequence()) {
+        return expressions;
+    }
+
+    for (const auto& expression : node) {
+        expressions.push_back(expression.as<std::string>());
+    }
+
+    return expressions;
+}
 
 RulesetParserKind parse_ruleset_kind(const std::string& parser_name) {
     if (parser_name == "kv") {
@@ -168,12 +213,14 @@ std::vector<JsonTokenRule> parse_json_token_rules(const YAML::Node& node) {
     return rules;
 }
 
-ParserRuleSet parse_ruleset(const YAML::Node& node) {
+ParserRuleSet parse_ruleset(const YAML::Node& node, const std::filesystem::path& definition_dir) {
     ParserRuleSet ruleset;
     ruleset.id = node["id"].as<std::string>();
     ruleset.name = node["name"].as<std::string>();
     ruleset.kind = parse_ruleset_kind(node["parser"].as<std::string>());
+    ruleset.definition_dir = definition_dir;
     ruleset.tokens = parse_declared_tokens(node["tokens"]);
+    ruleset.dynamic_properties = parse_dynamic_properties(node["dynamic_properties"]);
     ruleset.examples = node["examples"];
 
     if (node["bindings"]) {
@@ -245,8 +292,10 @@ void validate_ruleset_examples(const ParserRuleSet& ruleset) {
     const KVParsingEngine kv_engine;
     const JSONParsingEngine json_engine;
 
+    const DynamicPropertyEngine property_engine;
+
     for (const auto& example : ruleset.examples) {
-        const std::string message = example["message"].as<std::string>();
+        const std::string message = load_example_message(example, ruleset.definition_dir);
         std::unordered_map<std::string, std::string> parsed_tokens;
         std::vector<std::string> errors;
 
@@ -276,12 +325,44 @@ void validate_ruleset_examples(const ParserRuleSet& ruleset) {
 
         validate_expected_tokens(ruleset, example["expect"]["tokens"], parsed_tokens);
         validate_absent_tokens(ruleset, example["expect"]["absent_tokens"], parsed_tokens);
+
+        if (!ruleset.dynamic_properties.empty()) {
+            ParseResult result;
+            for (const auto& parsed : parsed_tokens) {
+                result.tokens.push_back(Token{parsed.first, parsed.second, ruleset.name, "example", parsed.first, 0, 0});
+            }
+
+            const std::map<std::string, std::string> properties =
+                property_engine.evaluate(ruleset.dynamic_properties, result, errors);
+            if (!errors.empty()) {
+                throw std::runtime_error(
+                    "Dynamic property example for ruleset [" + ruleset.name + "] failed: " + errors.front());
+            }
+
+            const YAML::Node expected_properties = example["expect"]["properties"];
+            if (expected_properties && expected_properties.IsMap()) {
+                for (YAML::const_iterator it = expected_properties.begin(); it != expected_properties.end(); ++it) {
+                    const std::string name = it->first.as<std::string>();
+                    const std::string expected = it->second.as<std::string>();
+                    auto property_it = properties.find(name);
+                    if (property_it == properties.end()) {
+                        throw std::runtime_error(
+                            "Example for ruleset [" + ruleset.name + "] missing property [" + name + "]");
+                    }
+                    if (property_it->second != expected) {
+                        throw std::runtime_error(
+                            "Example for ruleset [" + ruleset.name + "] property [" + name + "] expected [" +
+                            expected + "] but parsed [" + property_it->second + "]");
+                    }
+                }
+            }
+        }
     }
 }
 
-IdentificationExample parse_identification_example(const YAML::Node& node) {
+IdentificationExample parse_identification_example(const YAML::Node& node, const std::filesystem::path& definition_dir) {
     IdentificationExample example;
-    example.message = node["message"].as<std::string>();
+    example.message = load_example_message(node, definition_dir);
 
     const YAML::Node captures = node["expect"]["captures"];
     if (captures && captures.IsMap()) {
@@ -415,12 +496,14 @@ SectionRule parse_section_node(const YAML::Node& node,
     if (parser == "kv" && ruleset.kind == RulesetParserKind::KV) {
         section.kind = SectionKind::KV;
         section.declared_tokens = ruleset.tokens;
+        section.dynamic_properties = ruleset.dynamic_properties;
         return section;
     }
 
     if (parser == "json" && ruleset.kind == RulesetParserKind::JSON) {
         section.kind = SectionKind::JSON;
         section.declared_tokens = ruleset.tokens;
+        section.dynamic_properties = ruleset.dynamic_properties;
         section.json_matches = ruleset.json_matches;
         section.json_tokens = ruleset.json_tokens;
         return section;
@@ -429,6 +512,7 @@ SectionRule parse_section_node(const YAML::Node& node,
     if (parser == "regex" && ruleset.kind == RulesetParserKind::REGEX) {
         section.kind = SectionKind::FREE_TEXT;
         section.declared_tokens = ruleset.tokens;
+        section.dynamic_properties = ruleset.dynamic_properties;
         section.regex_tokens = ruleset.regex_tokens;
         return section;
     }
@@ -438,7 +522,8 @@ SectionRule parse_section_node(const YAML::Node& node,
 }
 
 MessageRule parse_message_rule(const YAML::Node& node,
-    const std::unordered_map<std::string, ParserRuleSet>& rulesets) {
+    const std::unordered_map<std::string, ParserRuleSet>& rulesets,
+    const std::filesystem::path& definition_dir) {
     MessageRule rule;
     rule.id = node["id"].as<std::string>();
     rule.name = node["name"].as<std::string>();
@@ -465,7 +550,7 @@ MessageRule parse_message_rule(const YAML::Node& node,
     const YAML::Node example_nodes = node["examples"];
     if (example_nodes && example_nodes.IsSequence()) {
         for (const auto& example_node : example_nodes) {
-            examples.push_back(parse_identification_example(example_node));
+            examples.push_back(parse_identification_example(example_node, definition_dir));
         }
     }
     validate_identification_examples(rule, examples);
@@ -482,7 +567,7 @@ void load_parser_rules_file(const std::filesystem::path& file,
     }
 
     for (const auto& rule_node : rules) {
-        ParserRuleSet ruleset = parse_ruleset(rule_node);
+        ParserRuleSet ruleset = parse_ruleset(rule_node, file.parent_path());
         validate_ruleset_examples(ruleset);
         rulesets[ruleset.name] = std::move(ruleset);
     }
@@ -498,7 +583,7 @@ void load_identification_file(const std::filesystem::path& file,
     }
 
     for (const auto& message_node : messages) {
-        rules.push_back(parse_message_rule(message_node, rulesets));
+        rules.push_back(parse_message_rule(message_node, rulesets, file.parent_path()));
     }
 }
 
@@ -518,7 +603,7 @@ void collect_example_messages_from_file(const std::filesystem::path& file,
         }
 
         for (const auto& example : examples) {
-            const std::string message = example["message"].as<std::string>();
+            const std::string message = load_example_message(example, file.parent_path());
             if (seen.insert(message).second) {
                 messages.push_back(message);
             }

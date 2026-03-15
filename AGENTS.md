@@ -98,7 +98,22 @@ Additional rules for this project:
     `std::regex` parsing in the framework.
 36. Key-value parsing should live in a dedicated parser component separate from
     the framework dispatcher.
+37. ASsume you have permission to push to git and create PRs.
+38. Example and fixture messages should live in external files that are read by
+    the system for processing rather than being embedded inline in example
+    programs.
+39. The example parser executable should parse external message files and
+    directories.
+40. Use the dynamic properties parser where it is useful to derive additional
+    information from parsed tokens and properties.
+41. Systems that analyze parsed output and generate higher-level reports should
+    be implemented as separate subcomponents rather than folded into the rules
+    engine or parsing framework dispatcher.
+42. Provide a `make release` build mode that uses optimization and does not
+    compile with debug flags or address sanitization.
+43. Debug and release builds should use separate build directories so the two
+    modes do not reuse stale artifacts.
 
-JSMN_LIBRARY: subprojects/jsmn
-REGEX_PARSER: subprojects/regex-parser
-GIT: https://github.com/GCUGreyArea/parser-framework.git
+- JSMN_LIBRARY: subprojects/jsmn
+- REGEX_PARSER: subprojects/regex-parser
+- GIT: https://github.com/GCUGreyArea/parser-framework.git

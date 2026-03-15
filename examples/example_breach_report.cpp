@@ -4,6 +4,7 @@
 
 #include "parser_framework/MessageLoader.hpp"
 #include "parser_framework/ParserFramework.hpp"
+#include "parser_framework/ReportAnalyzer.hpp"
 #include "parser_framework/RuleLoader.hpp"
 
 using namespace parser_framework;
@@ -36,16 +37,20 @@ std::vector<std::string> read_messages(int argc, char** argv, int first_message_
 int main(int argc, char** argv) {
     try {
         const std::string rules_path = argc > 1 ? argv[1] : "rules";
+        const std::string report_rules_path = argc > 2 ? argv[2] : "report_rules";
+
         ParserFramework framework(RuleLoader::load_rules(rules_path));
-        const std::vector<std::string> messages = read_messages(argc, argv, 2);
+        ReportAnalyzer analyzer(ReportRuleLoader::load_rules(report_rules_path));
+        const std::vector<std::string> messages = read_messages(argc, argv, 3);
 
         if (messages.empty()) {
-            std::cerr << "No messages found to parse\n";
+            std::cerr << "No messages found to analyze\n";
             return 1;
         }
 
         const std::vector<ParseResult> results = framework.parse_messages(messages);
-        std::cout << render_results_as_json(results) << "\n";
+        const std::vector<ReportFinding> reports = analyzer.analyze(results);
+        std::cout << render_reports_as_json(reports) << "\n";
         return 0;
     } catch (const std::exception& ex) {
         std::cerr << ex.what() << "\n";
