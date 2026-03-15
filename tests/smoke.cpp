@@ -3,7 +3,9 @@
 
 #include <gtest/gtest.h>
 
+#include "parser_framework/MessageLoader.hpp"
 #include "parser_framework/ParserFramework.hpp"
+#include "parser_framework/ReportAnalyzer.hpp"
 #include "parser_framework/RuleLoader.hpp"
 
 using namespace parser_framework;
@@ -21,42 +23,23 @@ const Token* find_token(const ParseResult& result, const std::string& name) {
 }
 
 std::string checkpoint_message() {
-    return "CheckPoint 9929 - [action:\"Accept\"; conn_direction:\"Outgoing\"; contextnum:\"5\"; "
-           "flags:\"7263232\"; ifdir:\"outbound\"; ifname:\"eth2\"; "
-           "loguid:\"{0x35904e9,0x4655026c,0xeafacc55,0x657c933c}\"; sequencenum:\"110\"; "
-           "time:\"1630417161\"; version:\"5\"; "
-           "__policy_id_tag:\"product=VPN-1 & FireWall-1[db_tag={599255D7-8B94-704F-9D9A-CFA3719EA5CE};mgmt=bos1cpmgmt01;date=1630333752;policy_name=<policy>\\]\"; "
-           "layer_uuid:\"9d7748a0-845f-491d-9eef-1fb41680bc35\"; match_id:\"48\"; "
-           "rule_uid:\"8bf81033-b6c7-44fe-a88a-2068c155f50e\"; proto:\"6\"; s_port:\"44853\"; "
-           "service:\"443\"; service_id:\"https\";]";
+    return MessageLoader::load_message_file("messages/checkpoint/checkpoint-accept.log");
 }
 
 std::string fortigate_message() {
-    return "date=2017-11-15 time=11:44:16 logid=\"0000000013\" type=\"traffic\" subtype=\"forward\" "
-           "level=\"notice\" vd=\"vdom1\" eventtime=1510775056 srcip=10.1.100.155 srcname=\"pc1\" "
-           "srcport=40772 srcintf=\"port12\" srcintfrole=\"undefined\" dstip=35.197.51.42 "
-           "dstname=\"fortiguard.com\" dstport=443 dstintf=\"port11\" dstintfrole=\"undefined\" "
-           "poluuid=\"707a0d88-cf9e-51e7-bbc7-4d421660557b\" sessionid=22921 proto=6 action=\"close\" "
-           "policyid=1 policytype=\"policy\" service=\"HTTPS\" dstcountry=\"United States\" "
-           "srccountry=\"Reserved\" trandisp=\"snat\" transip=172.16.200.2 transport=40772 "
-           "appid=40568 app=\"HTTPS.BROWSER\" appcat=\"Web.Client\" apprisk=\"medium\" duration=2 "
-           "sentbyte=1850 rcvdbyte=39898 sentpkt=25 rcvdpkt=37 utmaction=\"allow\" countapp=1";
+    return MessageLoader::load_message_file("messages/fortigate/traffic-close.log");
+}
+
+std::string fortigate_ips_message() {
+    return MessageLoader::load_message_file("messages/fortigate/ips-log4shell.log");
 }
 
 std::string aws_waf_message() {
-    return "{\"timestamp\":1576280412771,\"formatVersion\":1,"
-           "\"webaclId\":\"arn:aws:wafv2:ap-southeast-2:111122223333:regional/webacl/STMTest/"
-           "1EXAMPLE-2ARN-3ARN-4ARN-123456EXAMPLE\",\"terminatingRuleId\":\"STMTest_SQLi_XSS\","
-           "\"terminatingRuleType\":\"REGULAR\",\"action\":\"BLOCK\","
-           "\"terminatingRuleMatchDetails\":[{\"conditionType\":\"SQL_INJECTION\","
-           "\"sensitivityLevel\":\"HIGH\",\"location\":\"HEADER\",\"matchedData\":[\"10\",\"AND\",\"1\"]}],"
-           "\"httpSourceName\":\"-\",\"httpSourceId\":\"-\",\"ruleGroupList\":[],"
-           "\"rateBasedRuleList\":[],\"nonTerminatingMatchingRules\":[],\"httpRequest\":{"
-           "\"clientIp\":\"1.1.1.1\",\"country\":\"AU\",\"headers\":[{\"name\":\"Host\","
-           "\"value\":\"localhost:1989\"},{\"name\":\"User-Agent\",\"value\":\"curl/7.61.1\"},"
-           "{\"name\":\"Accept\",\"value\":\"*/*\"},{\"name\":\"x-stm-test\",\"value\":\"10 AND 1=1\"}],"
-           "\"uri\":\"/\",\"args\":\"\",\"httpVersion\":\"HTTP/1.1\",\"httpMethod\":\"POST\","
-           "\"requestId\":\"aws-waf-request-001\"},\"labels\":[{\"name\":\"awswaf:managed:token:absent\"}]}";
+    return MessageLoader::load_message_file("messages/aws-waf/sqli-block.json");
+}
+
+std::string suricata_message() {
+    return MessageLoader::load_message_file("messages/suricata/cryptfile2-alert.json");
 }
 
 } // namespace
@@ -144,7 +127,7 @@ TEST(ParserFramework, RendersNestedTokenObjectsForDottedNames) {
 
 TEST(RuleLoader, LoadsCheckPointRulesAndParsesMessage) {
     const std::vector<MessageRule> rules = RuleLoader::load_rules("rules");
-    ASSERT_EQ(rules.size(), 3u);
+    ASSERT_EQ(rules.size(), 5u);
 
     ParserFramework framework(rules);
     ParseResult result = framework.parse_message(checkpoint_message());
@@ -218,6 +201,32 @@ TEST(RuleLoader, LoadsFortiGateRulesAndParsesMessage) {
     EXPECT_EQ(utmaction->value, "allow");
 }
 
+TEST(RuleLoader, LoadsFortiGateIpsRulesAndParsesMessage) {
+    ParserFramework framework(RuleLoader::load_rules("rules"));
+    ParseResult result = framework.parse_message(fortigate_ips_message());
+
+    ASSERT_TRUE(result.matched);
+    ASSERT_TRUE(result.errors.empty());
+    EXPECT_EQ(result.message_rule_name, "FortiGate IPS");
+    ASSERT_EQ(result.token_extraction.size(), 2u);
+    EXPECT_EQ(result.token_extraction[0], "5d6ce0b2-55fd-4bb8-b376-786b63d79795");
+    EXPECT_EQ(result.token_extraction[1], "2a1f7d47-0f1b-4d7b-9cf7-4f118ec93241");
+
+    const Token* srcip = find_token(result, "srcip");
+    ASSERT_NE(srcip, nullptr);
+    EXPECT_EQ(srcip->value, "198.51.100.25");
+
+    const Token* attack = find_token(result, "attack");
+    ASSERT_NE(attack, nullptr);
+    EXPECT_EQ(attack->value, "Apache.Log4j.Error.Log.Remote.Code.Execution");
+
+    EXPECT_EQ(result.properties.at("threat.event"), "ips_detection");
+    EXPECT_EQ(result.properties.at("threat.source_ip"), "198.51.100.25");
+    EXPECT_EQ(result.properties.at("threat.destination_ip"), "10.0.0.25");
+    EXPECT_EQ(result.properties.at("threat.attack"), "Apache.Log4j.Error.Log.Remote.Code.Execution");
+    EXPECT_EQ(result.properties.at("threat.severity"), "critical");
+}
+
 TEST(RuleLoader, LoadsAwsWafRulesAndParsesMessage) {
     ParserFramework framework(RuleLoader::load_rules("rules"));
     ParseResult result = framework.parse_message(aws_waf_message());
@@ -244,13 +253,71 @@ TEST(RuleLoader, LoadsAwsWafRulesAndParsesMessage) {
     const Token* request_id = find_token(result, "request_id");
     ASSERT_NE(request_id, nullptr);
     EXPECT_EQ(request_id->value, "aws-waf-request-001");
+
+    EXPECT_EQ(result.properties.at("threat.event"), "web_attack");
+    EXPECT_EQ(result.properties.at("threat.source_ip"), "1.1.1.1");
+    EXPECT_EQ(result.properties.at("threat.rule_name"), "STMTest_SQLi_XSS");
+    EXPECT_EQ(result.properties.at("threat.outcome"), "BLOCK");
+}
+
+TEST(RuleLoader, LoadsSuricataRulesAndParsesMessage) {
+    ParserFramework framework(RuleLoader::load_rules("rules"));
+    ParseResult result = framework.parse_message(suricata_message());
+
+    ASSERT_TRUE(result.matched);
+    ASSERT_TRUE(result.errors.empty());
+    EXPECT_EQ(result.message_rule_name, "Suricata EVE Alert");
+    ASSERT_EQ(result.token_extraction.size(), 2u);
+    EXPECT_EQ(result.token_extraction[0], "d6874d8d-1c8a-4ff8-a686-7608e35f3371");
+    EXPECT_EQ(result.token_extraction[1], "5b53b8da-8760-4e71-b4bc-62f7d76e37d3");
+
+    const Token* src_ip = find_token(result, "src_ip");
+    ASSERT_NE(src_ip, nullptr);
+    EXPECT_EQ(src_ip->value, "142.11.240.191");
+
+    const Token* alert_signature = find_token(result, "alert_signature");
+    ASSERT_NE(alert_signature, nullptr);
+    EXPECT_EQ(alert_signature->value, "ET MALWARE Win32/CryptFile2 / Revenge Ransomware Checkin M3");
+
+    EXPECT_EQ(result.properties.at("threat.event"), "post_compromise_activity");
+    EXPECT_EQ(result.properties.at("threat.source_ip"), "142.11.240.191");
+    EXPECT_EQ(result.properties.at("threat.destination_ip"), "192.0.2.55");
+    EXPECT_EQ(result.properties.at("threat.signature"), "ET MALWARE Win32/CryptFile2 / Revenge Ransomware Checkin M3");
+    EXPECT_EQ(result.properties.at("threat.severity"), "1");
 }
 
 TEST(RuleLoader, LoadsExampleMessagesFromRules) {
     const std::vector<std::string> examples = RuleLoader::load_example_messages("rules");
 
-    ASSERT_EQ(examples.size(), 3u);
+    ASSERT_EQ(examples.size(), 5u);
     EXPECT_NE(std::find(examples.begin(), examples.end(), checkpoint_message()), examples.end());
     EXPECT_NE(std::find(examples.begin(), examples.end(), fortigate_message()), examples.end());
     EXPECT_NE(std::find(examples.begin(), examples.end(), aws_waf_message()), examples.end());
+    EXPECT_NE(std::find(examples.begin(), examples.end(), fortigate_ips_message()), examples.end());
+    EXPECT_NE(std::find(examples.begin(), examples.end(), suricata_message()), examples.end());
+}
+
+TEST(ReportAnalyzer, GeneratesBreachReportsFromParsedOutput) {
+    ParserFramework framework(RuleLoader::load_rules("rules"));
+    ReportAnalyzer analyzer(ReportRuleLoader::load_rules("report_rules"));
+
+    const std::vector<ParseResult> results = framework.parse_messages({
+        aws_waf_message(),
+        fortigate_ips_message(),
+        suricata_message(),
+        fortigate_message(),
+        checkpoint_message()
+    });
+
+    const std::vector<ReportFinding> reports = analyzer.analyze(results);
+    ASSERT_EQ(reports.size(), 3u);
+
+    const std::string json = render_reports_as_json(reports);
+    EXPECT_NE(json.find("\"phase\": \"initial_access\""), std::string::npos);
+    EXPECT_NE(json.find("\"phase\": \"exploitation\""), std::string::npos);
+    EXPECT_NE(json.find("\"phase\": \"command_and_control\""), std::string::npos);
+    EXPECT_NE(json.find("\"source\": {\n        \"message_rule_id\": \"1c507cb9-91d4-4024-871d-49f38ee08f36\""), std::string::npos);
+    EXPECT_NE(json.find("\"attack\": {\n          \"name\": \"Apache.Log4j.Error.Log.Remote.Code.Execution\""), std::string::npos);
+    EXPECT_NE(json.find("\"system\": \"suricata\""), std::string::npos);
+    EXPECT_EQ(json.find("\"report\": {\n        \"report\":"), std::string::npos);
 }

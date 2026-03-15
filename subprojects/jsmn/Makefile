@@ -1,5 +1,6 @@
 NAME 	 = jsmn
 
+BUILD_DIR ?= build
 CFLAGS   = -std=c11 -Wall -g -fPIC
 CXXFLAGS = -std=c++17 -Wall -g -fPIC
 BENCHMARK_FOUND  := $(shell pkg-config --exists benchmark && echo 1)
@@ -33,6 +34,8 @@ endif
 CC=gcc
 CXX=g++
 
+.PHONY: all benchmark build clean cmd_example doc jsondump simple test
+
 # Automated code gerneation. Don't fuck with it 
 # unless you know what your doing!
 TARGET  = lib$(NAME).so
@@ -46,23 +49,23 @@ CXXSRC = $(wildcard src/*.cpp)
 CSRC   = $(wildcard src/*.c)
 
 # YACC goes first!
-OBJ := $(patsubst %.tab.c,build/%.tab.o,$(YACSRC))
-OBJ += $(patsubst %.lex.c,build/%.lex.o,$(LEXSRC))
-OBJ += $(patsubst %.cpp,build/%.o,$(CXXSRC))
-OBJ += $(patsubst %.c,build/%.o,$(CSRC))
+OBJ := $(patsubst %.tab.c,$(BUILD_DIR)/%.tab.o,$(YACSRC))
+OBJ += $(patsubst %.lex.c,$(BUILD_DIR)/%.lex.o,$(LEXSRC))
+OBJ += $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(CXXSRC))
+OBJ += $(patsubst %.c,$(BUILD_DIR)/%.o,$(CSRC))
 
 # Test code
 TESTCXXSRC := $(wildcard test/*.cpp)
 TESTCSRC   := $(wildcard test/*.c)
-TESTOBJ	   := $(patsubst %.cpp,build/%.o,$(TESTCXXSRC))
-TESTOBJ	   += $(patsubst %.c,build/%.o,$(TESTCSRC))
+TESTOBJ	   := $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(TESTCXXSRC))
+TESTOBJ	   += $(patsubst %.c,$(BUILD_DIR)/%.o,$(TESTCSRC))
 
 BENCHCXXSRC := $(wildcard bench/*.cpp)
-BENCHOBJ    := $(patsubst %.cpp,build/%.o,$(BENCHCXXSRC))
+BENCHOBJ    := $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(BENCHCXXSRC))
 
-BUILDTARGET = build/$(TARGET)
-TESTTARGET  = build/$(TEST)
-BENCHTARGET = build/$(BENCH)
+BUILDTARGET = $(BUILD_DIR)/$(TARGET)
+TESTTARGET  = $(BUILD_DIR)/$(TEST)
+BENCHTARGET = $(BUILD_DIR)/$(BENCH)
 
 # Force rebuild of flex and bison files each time
 all: $(BUILDTARGET)
@@ -76,40 +79,40 @@ benchmark: $(BUILDTARGET) $(BENCHTARGET)
 
 # Dynamic Build Rules
 $(BUILDTARGET) : build $(OBJ)
-	$(CXX) $(CXXFLAGS) -fPIC -Lbuild -Isrc $(OBJ) -shared  -o $(BUILDTARGET)
+	$(CXX) $(CXXFLAGS) -fPIC -L$(BUILD_DIR) -Isrc $(OBJ) -shared  -o $(BUILDTARGET)
 
 $(TESTTARGET): build $(TESTOBJ)
-	$(CXX) $(CXXFLAGS) -Lbuild -Isrc -Itest $(TESTOBJ) -ljsmn -lgtest -lpthread -lglog -o $(TESTTARGET) -Wl,-rpath,build
+	$(CXX) $(CXXFLAGS) -L$(BUILD_DIR) -Isrc -Itest $(TESTOBJ) -ljsmn -lgtest -lpthread -lglog -o $(TESTTARGET) -Wl,-rpath,$(BUILD_DIR)
 
 $(BENCHTARGET): build $(BENCHOBJ)
 	@if [ "$(BENCHMARK_FOUND)" != "1" ]; then \
 		echo "Google Benchmark not found. Install libbenchmark or expose it via pkg-config."; \
 		exit 1; \
 	fi
-	$(CXX) $(CXXFLAGS) $(BENCHMARK_CFLAGS) $(BENCH_COMPARE_CFLAGS) -Lbuild -Isrc -Ibench $(BENCHOBJ) -ljsmn $(BENCHMARK_LIBS) $(BENCH_COMPARE_LIBS) -lpthread -o $(BENCHTARGET) -Wl,-rpath,build
+	$(CXX) $(CXXFLAGS) $(BENCHMARK_CFLAGS) $(BENCH_COMPARE_CFLAGS) -L$(BUILD_DIR) -Isrc -Ibench $(BENCHOBJ) -ljsmn $(BENCHMARK_LIBS) $(BENCH_COMPARE_LIBS) -lpthread -o $(BENCHTARGET) -Wl,-rpath,$(BUILD_DIR)
 
 cmd_example: $(BUILDTARGET)
 	g++ -std=c++17 -g -Wall -Isrc -c examples/cmd_example.cpp -o cmd_example.o
-	g++ -std=c++17 -g -Lbuild -o build/cmd_example cmd_example.o -ljsmn -Wl,-rpath,build
+	g++ -std=c++17 -g -L$(BUILD_DIR) -o $(BUILD_DIR)/cmd_example cmd_example.o -ljsmn -Wl,-rpath,$(BUILD_DIR)
 	rm -f cmd_example.o
 
 jsondump: $(BUILDTARGET)
 	g++ -std=c++17 -g -Wall -Isrc -c examples/jsondump.cpp -o jsondump.o
-	g++ -std=c++17 -g -Lbuild -o jsondump jsondump.o -ljsmn -Wl,-rpath,build
+	g++ -std=c++17 -g -L$(BUILD_DIR) -o jsondump jsondump.o -ljsmn -Wl,-rpath,$(BUILD_DIR)
 	rm -f jsondump.o
 
 simple: $(BUILDTARGET)
 	g++ -std=c++17 -g -Wall -Isrc -c examples/simple.cpp -o simple.o
-	g++ -std=c++17 -g -Lbuild -o simple simple.o -ljsmn -Wl,-rpath,build
+	g++ -std=c++17 -g -L$(BUILD_DIR) -o simple simple.o -ljsmn -Wl,-rpath,$(BUILD_DIR)
 	rm -f simple.o
 
 doc:
 	cd docs/Doxygen && doxygen Doxyfile
 
 build:
-	mkdir -p build/src
-	mkdir -p build/test
-	mkdir -p build/bench
+	mkdir -p $(BUILD_DIR)/src
+	mkdir -p $(BUILD_DIR)/test
+	mkdir -p $(BUILD_DIR)/bench
 
 src/%.tab.c: src/%.y
 	bison -d $< -o $@
@@ -117,16 +120,16 @@ src/%.tab.c: src/%.y
 src/%.lex.c: src/%.l
 	flex -o $@ $<
 
-build/%.o: %.c
-	$(CC) -c $(CFLAGS) -Lbuild -Isrc -Itest $< -o $@
+$(BUILD_DIR)/%.o: %.c
+	$(CC) -c $(CFLAGS) -L$(BUILD_DIR) -Isrc -Itest $< -o $@
 
-build/%.o: %.cpp
-	$(CXX) -c $(CXXFLAGS) -Lbuild -Isrc -Itest -c $< -o $@
+$(BUILD_DIR)/%.o: %.cpp
+	$(CXX) -c $(CXXFLAGS) -L$(BUILD_DIR) -Isrc -Itest -c $< -o $@
 
-build/bench/%.o: bench/%.cpp
-	$(CXX) -c $(CXXFLAGS) $(BENCHMARK_CFLAGS) $(BENCH_COMPARE_CFLAGS) -Lbuild -Isrc -Ibench -c $< -o $@
+$(BUILD_DIR)/bench/%.o: bench/%.cpp
+	$(CXX) -c $(CXXFLAGS) $(BENCHMARK_CFLAGS) $(BENCH_COMPARE_CFLAGS) -L$(BUILD_DIR) -Isrc -Ibench -c $< -o $@
 
 clean:
-	rm -rf build cmd_example jsondump simple test.bin tests src/*.tab.h src/*.tab.c src/*.lex.c docs/html
+	rm -rf $(BUILD_DIR) cmd_example jsondump simple test.bin tests src/*.tab.h src/*.tab.c src/*.lex.c docs/html
 
 .PRECIOUS: *.tab.c 

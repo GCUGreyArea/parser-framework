@@ -1,0 +1,58 @@
+rules:
+  - id: 2a1f7d47-0f1b-4d7b-9cf7-4f118ec93241
+    name: FortiGateIPSKV
+    parser: kv
+    bindings:
+      - 5d6ce0b2-55fd-4bb8-b376-786b63d79795
+    tokens:
+      date: string
+      time: string
+      devname: string
+      devid: string
+      eventtime: int
+      tz: string
+      logid: string
+      type: string
+      subtype: string
+      eventtype: string
+      level: string
+      severity: string
+      vd: string
+      srcip: ip
+      srcport: int
+      srcintf: string
+      dstip: ip
+      dstport: int
+      dstintf: string
+      proto: int
+      service: string
+      action: string
+      attack: string
+      attackid: int
+      profile: string
+      ref: string
+      msg: string
+      hostname: string
+      url: string
+    dynamic_properties:
+      - 'if action == "blocked" then threat.event = "ips_detection" and threat.source_ip = srcip and threat.destination_ip = dstip and threat.attack = attack and threat.severity = severity and threat.outcome = action'
+    examples:
+      - message_file: 'messages/fortigate/ips-log4shell.log'
+        expect:
+          tokens:
+            srcip: "198.51.100.25"
+            dstip: "10.0.0.25"
+            action: "blocked"
+            attack: "Apache.Log4j.Error.Log.Remote.Code.Execution"
+            severity: "critical"
+            hostname: "vpn.example.com"
+            url: "/api/login"
+          properties:
+            threat.event: "ips_detection"
+            threat.source_ip: "198.51.100.25"
+            threat.destination_ip: "10.0.0.25"
+            threat.attack: "Apache.Log4j.Error.Log.Remote.Code.Execution"
+            threat.severity: "critical"
+            threat.outcome: "blocked"
+          absent_tokens:
+            - client_ip

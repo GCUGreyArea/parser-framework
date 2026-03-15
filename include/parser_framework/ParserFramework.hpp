@@ -32,6 +32,7 @@ struct ParseResult {
     std::string message_rule_name;
     std::string event_name;
     std::string event_pattern_id;
+    std::map<std::string, std::string> properties;
     std::vector<std::string> token_extraction;
     std::vector<Token> tokens;
     std::vector<std::string> errors;
@@ -78,6 +79,7 @@ struct SectionRule {
     std::size_t locator_group {1};
     bool allow_multiple {false};
     std::vector<DeclaredToken> declared_tokens;
+    std::vector<std::string> dynamic_properties;
     std::vector<RegexTokenRule> regex_tokens;
     std::vector<JsonMatchRule> json_matches;
     std::vector<JsonTokenRule> json_tokens;
