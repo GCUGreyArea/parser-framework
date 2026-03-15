@@ -711,6 +711,7 @@ assistant> The strongest fit for this framework is ATT&CK-style enrichment plus 
 assistant> I found a good Cloudflare path: the official firewall-events field reference gives us a realistic event shape, and Cloudflare’s Log4Shell write-up includes managed rule IDs that can anchor a real WAF-style breach-attempt fixture without inventing the detection story.
 assistant> I’m expanding the demo in three places now: add a Cloudflare firewall message and JSON rules, enrich the existing AWS/FortiGate/Suricata rules with ATT&CK-style properties, and extend `ReportAnalyzer` so it can emit a correlated multi-system campaign report when the same attack family appears across multiple controls.
 assistant> Validation is clean: the release reporter now emits AWS WAF, Cloudflare, FortiGate IPS, Suricata, and a correlated multi-system Log4Shell campaign report, and the direct debug test binary passes all 10 tests.
+assistant> I committed the branch work, pushed `feature/threat-analysis-multi-system`, and opened the review PR against `main`.
 ```
 
 ```diff
