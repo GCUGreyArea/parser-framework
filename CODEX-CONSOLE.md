@@ -755,3 +755,37 @@ assistant> I’m adding the new standing instruction to `AGENTS.md`, refreshing 
 ```diff
 + Added a standing AGENTS rule to update unit tests and `README.md` whenever functionality changes
 ```
+
+## Session Continuation 13
+
+```text
+user@codex:~$ We now need to consider where the data that is being analysed comes from... We now need design a schema that will be used by log ingestion to tag blocks of log files as belonging to some system, owned and operated by some organisation...
+user@codex:~$ please add this into you records in one of the md files.
+assistant> I’m recording the ingestion-schema requirement as a standing project instruction in `AGENTS.md` and reflecting it in the session log so it’s preserved with the branch history.
+```
+
+```diff
++ Added a standing AGENTS rule for an ingestion-envelope schema covering system, network, geography, ownership, operator, and local-storage metadata
+```
+
+## Session Continuation 14
+
+```text
+user@codex:~$ we will aboviuosly need a new feature branch for this. Please describe what you will do before doing it
+assistant> I already created `feature/ingestion-schema` to isolate this work. Before I make further code changes on it, the plan is: define the JSON ingestion schema, model it in code, add an ingestion pipeline above `MessageLoader`, make the storage shape database-friendly, add a realistic multi-tenant bundle fixture, expose it through an example executable, and update tests and docs.
+user@codex:~$ ok, you can go ahead with that now
+assistant> I’m starting with the schema and data model first, because that locks the storage and remote-producer contract before the pipeline code is written around it. After that I’ll wire an ingestion component and an example executable that can consume a tagged bundle and run the existing parser/report flow over it.
+assistant> I’ve got the current boundaries. The clean place for this is a new ingestion layer above `MessageLoader`: define a JSON envelope schema, load it into typed metadata, then hand the contained log blocks into the existing parser/report components without mixing source attribution into the rules engine itself.
+assistant> I’m writing three pieces together so they stay coherent: the JSON schema contract, the typed loader/validator, and the pipeline/output model that preserves attribution metadata around the parser/report output. Then I’ll drop in a realistic bundle fixture that proves the cross-network ownership model rather than just documenting it.
+assistant> I’ve got the first slice in place. I’m tightening it now: fixing a couple of C++ details in the new ingestion files, wiring the build target, and adding tests before I run the end-to-end example.
+assistant> The ingestion code is in. I’m updating the docs next so the new schema, fixture location, and `example_ingestion_bundle` flow are documented before I run the full verification pass.
+assistant> The ingestion bundle loader, schema, pipeline, example binary, tests, and README changes are all now validated. I’m updating the task record and session transcript next, then I’ll do the final diff review before committing the branch.
+```
+
+```diff
++ Added a literal JSON schema for attributed ingestion bundles under `schemas/`
++ Added typed ingestion-bundle and ingestion-pipeline components to the shared library
++ Added a realistic multi-tenant bundle fixture covering Cloudflare, AWS, and customer-secure-network systems
++ Added `example_ingestion_bundle` for bundle-driven parsing and reporting
++ Added loader and pipeline tests plus README documentation for the ingestion flow
+```

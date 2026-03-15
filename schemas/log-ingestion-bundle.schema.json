@@ -1,0 +1,336 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gcugreyarea.github.io/parser-framework/schemas/log-ingestion-bundle.schema.json",
+  "title": "Log Ingestion Bundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "bundle_id",
+    "produced_at",
+    "producer",
+    "storage",
+    "organizations",
+    "sites",
+    "networks",
+    "systems",
+    "collections"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "bundle_id": {
+      "type": "string"
+    },
+    "produced_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "$ref": "#/$defs/producer"
+    },
+    "storage": {
+      "$ref": "#/$defs/storage"
+    },
+    "organizations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/organization"
+      }
+    },
+    "sites": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/site"
+      }
+    },
+    "networks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/network"
+      }
+    },
+    "systems": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/system"
+      }
+    },
+    "collections": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/collection"
+      }
+    }
+  },
+  "$defs": {
+    "stringArray": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "attribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "owner_org_ids": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "operator_org_ids": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "tenant_org_ids": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "provider_org_ids": {
+          "$ref": "#/$defs/stringArray"
+        }
+      }
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component_id",
+        "component_type"
+      ],
+      "properties": {
+        "component_id": {
+          "type": "string"
+        },
+        "component_type": {
+          "type": "string"
+        },
+        "organisation_id": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "backend",
+        "database",
+        "bundle_collection",
+        "result_collection"
+      ],
+      "properties": {
+        "backend": {
+          "type": "string"
+        },
+        "database": {
+          "type": "string"
+        },
+        "bundle_collection": {
+          "type": "string"
+        },
+        "result_collection": {
+          "type": "string"
+        }
+      }
+    },
+    "organization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "kind"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "tags": {
+          "$ref": "#/$defs/stringArray"
+        }
+      }
+    },
+    "site": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "country_code",
+        "region"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "country_code": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "city": {
+          "type": "string"
+        },
+        "timezone": {
+          "type": "string"
+        }
+      }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "environment",
+        "site_id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "environment": {
+          "type": "string"
+        },
+        "site_id": {
+          "type": "string"
+        },
+        "attribution": {
+          "$ref": "#/$defs/attribution"
+        },
+        "tags": {
+          "$ref": "#/$defs/stringArray"
+        }
+      }
+    },
+    "system": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "vendor",
+        "product",
+        "deployment_model",
+        "network_id",
+        "site_id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "vendor": {
+          "type": "string"
+        },
+        "product": {
+          "type": "string"
+        },
+        "deployment_model": {
+          "type": "string"
+        },
+        "network_id": {
+          "type": "string"
+        },
+        "site_id": {
+          "type": "string"
+        },
+        "attribution": {
+          "$ref": "#/$defs/attribution"
+        },
+        "tags": {
+          "$ref": "#/$defs/stringArray"
+        }
+      }
+    },
+    "collection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "system_id",
+        "network_id",
+        "site_id",
+        "log_type",
+        "format",
+        "classification",
+        "observed_start",
+        "observed_end",
+        "records"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "system_id": {
+          "type": "string"
+        },
+        "network_id": {
+          "type": "string"
+        },
+        "site_id": {
+          "type": "string"
+        },
+        "log_type": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string"
+        },
+        "classification": {
+          "type": "string"
+        },
+        "observed_start": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "observed_end": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "attribution": {
+          "$ref": "#/$defs/attribution"
+        },
+        "tags": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "records": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

@@ -10,6 +10,7 @@ can be modified here without affecting the original sibling repositories.
 - `include/parser_framework`
 - `src`
 - `examples`
+- `bundles`
 - `messages`
 - `messages/cloudflare`
 - `report_rules`
@@ -17,6 +18,7 @@ can be modified here without affecting the original sibling repositories.
 - `rules/KV`
 - `rules/JSON`
 - `rules/identification`
+- `schemas`
 - `tests`
 
 ## Current implementation
@@ -32,10 +34,12 @@ The current framework slice is in place:
 - a separate report-analysis subcomponent that consumes parsed output and emits breach-oriented JSON reports
 - ATT&CK-style enrichment for threat family, tactic, and technique identifiers
 - multi-system correlation for repeated attack families seen across distinct systems
+- ingestion-envelope schema support for attributed multi-network log bundles
 - shared-library build output for the framework
 - example parser executable that emits JSON in a `regex-parser`-style `parsed` array
 - example parser defaults to the external message fixtures under `messages/`
 - example breach-report executable that reads parser output and emits a separate `reports` JSON structure
+- example ingestion-bundle executable that reads tagged JSON bundles and runs parsing plus reporting over attributed collections
 - loader-side example validation for identification captures plus KV/JSON token extraction
 - external YAML rules loaded from `rules/`
 
@@ -59,6 +63,38 @@ The framework itself is only responsible for orchestration. Regex matching runs
 through the vendored `regex-parser` components, KV parsing runs through a
 separate KV parser component, JSON extraction uses `jsmn` JSONPath, and report
 generation is handled by a separate analysis subcomponent.
+
+## Ingestion Envelope
+
+The repository now includes a literal JSON ingestion schema at
+`schemas/log-ingestion-bundle.schema.json`. It is intended for remote log
+forwarders or collection services that need to send attributed log bundles into
+the parser locally.
+
+Each bundle carries:
+
+- producer metadata so remote components can be identified when they submit a
+  bundle
+- storage hints so the same document shape can be stored locally in a database
+  such as MongoDB without reshaping it
+- organization, site, network, and system inventories with stable IDs
+- explicit attribution fields for owner, operator, tenant, and provider
+  relationships
+- log collections that reference those inventories and contain `records` as a
+  JSON array of raw log strings
+
+This separation matters for multi-tenant or managed environments. A system can
+therefore be modeled as customer-owned, provider-hosted, and third-party
+operated at the same time. The worked example bundle in
+`bundles/multi-tenant-ingestion.json` shows:
+
+- Cloudflare edge telemetry for a tenant system operated by BAE for SIS
+- AWS-hosted WAF infrastructure leased to and operated for SIS
+- a customer-owned secure network operated by BAE on behalf of SIS
+
+The ingestion pipeline resolves these references, parses each collection with
+the normal parser rules, and then runs the report analyzer across the bundle so
+correlations can span multiple systems and networks.
 
 ## Threat Analysis Techniques
 
@@ -253,6 +289,7 @@ object in parser output.
 make release
 ./build/release/example_parser --rules rules --messages messages
 ./build/release/example_breach_report --rules rules --report-rules report_rules --messages messages
+./build/release/example_ingestion_bundle --bundle bundles/multi-tenant-ingestion.json --rules rules --report-rules report_rules
 ```
 
 With no message-path arguments, the example parser defaults to the external
@@ -273,7 +310,16 @@ results:
 ./build/release/example_breach_report --rules rules --report-rules report_rules --messages messages
 ```
 
+The ingestion-bundle example reads a JSON envelope that already contains
+attributed log collections and raw records:
+
+```bash
+./build/release/example_ingestion_bundle --bundle bundles/multi-tenant-ingestion.json
+./build/release/example_ingestion_bundle -b bundles/multi-tenant-ingestion.json -r rules -p report_rules
+```
+
 Both example binaries also support `-h` / `--help` to print their CLI syntax.
+The ingestion example supports `-h` / `--help` as well.
 
 `make release` performs a clean optimized build without debug flags or address
 sanitization so the example binaries can be run directly from `build/release/`.

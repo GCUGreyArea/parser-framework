@@ -1,0 +1,265 @@
+{
+  "schema_version": "1.0.0",
+  "bundle_id": "bundle-2026-03-15-demo-001",
+  "produced_at": "2026-03-15T09:30:00Z",
+  "producer": {
+    "component_id": "forwarder-eu-01",
+    "component_type": "remote-log-forwarder",
+    "organisation_id": "org-bae",
+    "region": "eu-west"
+  },
+  "storage": {
+    "backend": "mongodb",
+    "database": "parser_framework",
+    "bundle_collection": "ingestion_bundles",
+    "result_collection": "ingestion_results"
+  },
+  "organizations": [
+    {
+      "id": "org-aws",
+      "name": "Amazon Web Services",
+      "kind": "provider",
+      "tags": ["cloud", "infrastructure"]
+    },
+    {
+      "id": "org-cloudflare",
+      "name": "Cloudflare",
+      "kind": "provider",
+      "tags": ["edge", "waf"]
+    },
+    {
+      "id": "org-bae",
+      "name": "BAE Systems",
+      "kind": "operator",
+      "tags": ["managed-service", "defence"]
+    },
+    {
+      "id": "org-sis",
+      "name": "SIS",
+      "kind": "owner",
+      "tags": ["customer", "government"]
+    }
+  ],
+  "sites": [
+    {
+      "id": "site-global-edge",
+      "name": "Global Edge",
+      "country_code": "ZZ",
+      "region": "global",
+      "city": "global",
+      "timezone": "UTC"
+    },
+    {
+      "id": "site-apse2",
+      "name": "AWS ap-southeast-2",
+      "country_code": "AU",
+      "region": "ap-southeast-2",
+      "city": "Sydney",
+      "timezone": "Australia/Sydney"
+    },
+    {
+      "id": "site-uk-secure",
+      "name": "UK Secure Network",
+      "country_code": "GB",
+      "region": "eu-west",
+      "city": "London",
+      "timezone": "Europe/London"
+    }
+  ],
+  "networks": [
+    {
+      "id": "net-public-edge",
+      "name": "Public Edge",
+      "kind": "edge",
+      "environment": "production",
+      "site_id": "site-global-edge",
+      "attribution": {
+        "tenant_org_ids": ["org-sis"],
+        "operator_org_ids": ["org-bae"],
+        "provider_org_ids": ["org-cloudflare"]
+      },
+      "tags": ["internet-facing", "global"]
+    },
+    {
+      "id": "net-aws-prod-vpc",
+      "name": "SIS Production VPC",
+      "kind": "cloud-vpc",
+      "environment": "production",
+      "site_id": "site-apse2",
+      "attribution": {
+        "owner_org_ids": ["org-sis"],
+        "operator_org_ids": ["org-bae"],
+        "tenant_org_ids": ["org-sis"],
+        "provider_org_ids": ["org-aws"]
+      },
+      "tags": ["leased", "cloud", "production"]
+    },
+    {
+      "id": "net-uk-secure",
+      "name": "Customer Secure Network",
+      "kind": "secure-wan",
+      "environment": "production",
+      "site_id": "site-uk-secure",
+      "attribution": {
+        "owner_org_ids": ["org-sis"],
+        "operator_org_ids": ["org-bae"],
+        "tenant_org_ids": ["org-sis"]
+      },
+      "tags": ["secure", "customer-owned"]
+    }
+  ],
+  "systems": [
+    {
+      "id": "sys-cloudflare-waf",
+      "name": "Cloudflare WAF Edge",
+      "kind": "waf",
+      "vendor": "Cloudflare",
+      "product": "Firewall Events",
+      "deployment_model": "managed-service",
+      "network_id": "net-public-edge",
+      "site_id": "site-global-edge",
+      "attribution": {
+        "tenant_org_ids": ["org-sis"],
+        "operator_org_ids": ["org-bae"],
+        "provider_org_ids": ["org-cloudflare"]
+      },
+      "tags": ["internet-facing", "edge"]
+    },
+    {
+      "id": "sys-aws-waf",
+      "name": "AWS WAF Gateway",
+      "kind": "waf",
+      "vendor": "AWS",
+      "product": "AWS WAF",
+      "deployment_model": "leased-cloud",
+      "network_id": "net-aws-prod-vpc",
+      "site_id": "site-apse2",
+      "attribution": {
+        "owner_org_ids": ["org-sis"],
+        "operator_org_ids": ["org-bae"],
+        "tenant_org_ids": ["org-sis"],
+        "provider_org_ids": ["org-aws"]
+      },
+      "tags": ["cloud", "perimeter"]
+    },
+    {
+      "id": "sys-fortigate-ips",
+      "name": "FortiGate VPN IPS",
+      "kind": "ips",
+      "vendor": "Fortinet",
+      "product": "FortiGate IPS",
+      "deployment_model": "customer-network",
+      "network_id": "net-uk-secure",
+      "site_id": "site-uk-secure",
+      "attribution": {
+        "owner_org_ids": ["org-sis"],
+        "operator_org_ids": ["org-bae"],
+        "tenant_org_ids": ["org-sis"]
+      },
+      "tags": ["vpn", "secure-network"]
+    },
+    {
+      "id": "sys-suricata-sensor",
+      "name": "Suricata Sensor",
+      "kind": "network-sensor",
+      "vendor": "OISF",
+      "product": "Suricata",
+      "deployment_model": "customer-network",
+      "network_id": "net-uk-secure",
+      "site_id": "site-uk-secure",
+      "attribution": {
+        "owner_org_ids": ["org-sis"],
+        "operator_org_ids": ["org-bae"],
+        "tenant_org_ids": ["org-sis"]
+      },
+      "tags": ["sensor", "east-west"]
+    }
+  ],
+  "collections": [
+    {
+      "id": "col-cloudflare-log4shell",
+      "name": "Cloudflare Log4Shell Firewall Events",
+      "system_id": "sys-cloudflare-waf",
+      "network_id": "net-public-edge",
+      "site_id": "site-global-edge",
+      "log_type": "waf",
+      "format": "json",
+      "classification": "official-sensitive",
+      "observed_start": "2021-12-13T11:59:40Z",
+      "observed_end": "2021-12-13T11:59:40Z",
+      "attribution": {
+        "tenant_org_ids": ["org-sis"],
+        "operator_org_ids": ["org-bae"],
+        "provider_org_ids": ["org-cloudflare"]
+      },
+      "tags": ["log4shell", "external-telemetry"],
+      "records": [
+        "{\"Action\":\"block\",\"ClientASN\":64501,\"ClientCountry\":\"US\",\"ClientIP\":\"198.51.100.25\",\"ClientRequestHost\":\"vpn.example.com\",\"ClientRequestMethod\":\"GET\",\"ClientRequestPath\":\"/api/login\",\"ClientRequestProtocol\":\"HTTP/1.1\",\"ClientRequestQuery\":\"\",\"ClientRequestScheme\":\"https\",\"ClientRequestUserAgent\":\"curl/7.79.1\",\"Datetime\":\"2021-12-13T11:59:40Z\",\"Description\":\"Log4j Headers\",\"EdgeResponseStatus\":403,\"Kind\":\"firewall\",\"OriginResponseStatus\":0,\"RayID\":\"73f4f5d15b7b2a11\",\"RuleID\":\"6b1cc72dff9746469d4695a474430f12\",\"Source\":\"firewallmanaged\"}"
+      ]
+    },
+    {
+      "id": "col-aws-sqli",
+      "name": "AWS WAF SQLi Events",
+      "system_id": "sys-aws-waf",
+      "network_id": "net-aws-prod-vpc",
+      "site_id": "site-apse2",
+      "log_type": "waf",
+      "format": "json",
+      "classification": "official-sensitive",
+      "observed_start": "2019-12-13T01:40:12Z",
+      "observed_end": "2019-12-13T01:40:12Z",
+      "attribution": {
+        "owner_org_ids": ["org-sis"],
+        "operator_org_ids": ["org-bae"],
+        "tenant_org_ids": ["org-sis"],
+        "provider_org_ids": ["org-aws"]
+      },
+      "tags": ["sqli", "cloud"],
+      "records": [
+        "{\"timestamp\":1576280412771,\"formatVersion\":1,\"webaclId\":\"arn:aws:wafv2:ap-southeast-2:111122223333:regional/webacl/STMTest/1EXAMPLE-2ARN-3ARN-4ARN-123456EXAMPLE\",\"terminatingRuleId\":\"STMTest_SQLi_XSS\",\"terminatingRuleType\":\"REGULAR\",\"action\":\"BLOCK\",\"terminatingRuleMatchDetails\":[{\"conditionType\":\"SQL_INJECTION\",\"sensitivityLevel\":\"HIGH\",\"location\":\"HEADER\",\"matchedData\":[\"10\",\"AND\",\"1\"]}],\"httpSourceName\":\"-\",\"httpSourceId\":\"-\",\"ruleGroupList\":[],\"rateBasedRuleList\":[],\"nonTerminatingMatchingRules\":[],\"httpRequest\":{\"clientIp\":\"1.1.1.1\",\"country\":\"AU\",\"headers\":[{\"name\":\"Host\",\"value\":\"localhost:1989\"},{\"name\":\"User-Agent\",\"value\":\"curl/7.61.1\"},{\"name\":\"Accept\",\"value\":\"*/*\"},{\"name\":\"x-stm-test\",\"value\":\"10 AND 1=1\"}],\"uri\":\"/\",\"args\":\"\",\"httpVersion\":\"HTTP/1.1\",\"httpMethod\":\"POST\",\"requestId\":\"aws-waf-request-001\"},\"labels\":[{\"name\":\"awswaf:managed:token:absent\"}]}"
+      ]
+    },
+    {
+      "id": "col-fortigate-log4shell",
+      "name": "FortiGate IPS Log4Shell Detections",
+      "system_id": "sys-fortigate-ips",
+      "network_id": "net-uk-secure",
+      "site_id": "site-uk-secure",
+      "log_type": "ips",
+      "format": "kv",
+      "classification": "secret",
+      "observed_start": "2021-12-13T11:59:41Z",
+      "observed_end": "2021-12-13T11:59:41Z",
+      "attribution": {
+        "owner_org_ids": ["org-sis"],
+        "operator_org_ids": ["org-bae"],
+        "tenant_org_ids": ["org-sis"]
+      },
+      "tags": ["log4shell", "internal-block"],
+      "records": [
+        "date=2021-12-13 time=11:59:41 devname=\"FGT60F\" devid=\"FGT60FTK21000001\" eventtime=1639396781000 tz=\"+0000\" logid=\"0419016384\" type=\"utm\" subtype=\"ips\" eventtype=\"signature\" level=\"alert\" severity=\"critical\" vd=\"root\" srcip=198.51.100.25 srcport=53214 srcintf=\"wan1\" srcintfrole=\"wan\" dstip=10.0.0.25 dstport=443 dstintf=\"lan\" dstintfrole=\"lan\" proto=6 service=\"HTTPS\" action=\"blocked\" attack=\"Apache.Log4j.Error.Log.Remote.Code.Execution\" attackid=51006 profile=\"default\" ref=\"https://www.fortiguard.com/encyclopedia/ips/51006\" msg=\"Attack detected by signature\" crscore=50 craction=4096 hostname=\"vpn.example.com\" url=\"/api/login\""
+      ]
+    },
+    {
+      "id": "col-suricata-c2",
+      "name": "Suricata C2 Alerts",
+      "system_id": "sys-suricata-sensor",
+      "network_id": "net-uk-secure",
+      "site_id": "site-uk-secure",
+      "log_type": "ids",
+      "format": "json",
+      "classification": "secret",
+      "observed_start": "2023-09-18T06:13:41Z",
+      "observed_end": "2023-09-18T06:13:41Z",
+      "attribution": {
+        "owner_org_ids": ["org-sis"],
+        "operator_org_ids": ["org-bae"],
+        "tenant_org_ids": ["org-sis"]
+      },
+      "tags": ["post-compromise", "c2"],
+      "records": [
+        "{\"timestamp\":\"2023-09-18T06:13:41.532140+0000\",\"flow_id\":1676750115612680,\"event_type\":\"alert\",\"src_ip\":\"142.11.240.191\",\"src_port\":35361,\"dest_ip\":\"192.0.2.55\",\"dest_port\":443,\"proto\":\"TCP\",\"app_proto\":\"tls\",\"alert\":{\"action\":\"allowed\",\"gid\":1,\"signature_id\":2024056,\"rev\":4,\"signature\":\"ET MALWARE Win32/CryptFile2 / Revenge Ransomware Checkin M3\",\"category\":\"Malware Command and Control Activity Detected\",\"severity\":1}}"
+      ]
+    }
+  ]
+}
