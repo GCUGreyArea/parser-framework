@@ -701,3 +701,27 @@ assistant> The core user-facing fix is verified now: `make release` builds an op
 + Added built-in ASan default options to the example executables
 + Linked the release executables explicitly against `libasan` because the host `yaml-cpp` is ASan-instrumented
 ```
+
+## Session Continuation 8
+
+```text
+user@codex:~$ Could you please do that. After you have validated that it works, please go ahead and create and push a PR with the branch.
+assistant> I’m separating the build outputs by mode now so debug and release stop reusing each other’s artifacts. First I’m checking the current branch/worktree state, then I’ll refactor the Makefile around distinct output directories and verify both modes before I commit, push, and create the PR.
+assistant> I’ve got the shape of the fix: top-level and subproject outputs will move to mode-specific directories so `build/debug` and `build/release` can coexist. I’m patching the top-level Makefile, the vendored `jsmn` makefile, and the docs/instructions together so the behavior stays consistent end to end.
+assistant> The directory split is patched. I’m validating the exact coexistence path now: build release into `build/release`, run the release binary, then build and run the debug test target into `build/debug` without clobbering the release artifacts.
+assistant> The failure is in the vendored `jsmn` makefile: its `build` target is not phony, so once the parent `build/` directory exists it stops creating the mode-specific subdirectories like `build/release/src`. I’m fixing that and rerunning the mode-split verification sequentially.
+assistant> The top-level split is correct conceptually, but I found one expansion bug: `BUILD_DIR` was defined before `BUILD_MODE`, so debug builds were still collapsing to `build/`. I’m correcting that ordering now and rerunning the validation.
+assistant> The directory split itself is working: `build/debug` and `build/release` now coexist. I hit one follow-up anomaly while re-running the release binary after the debug build, so I’m tracing the runtime linkage now to make sure the release executable is still resolving only the release libraries and not falling into the same mixed-runtime failure path.
+assistant> The remaining issue is narrowed down: the release binary is correct, but this traced shell only behaves consistently when leak detection is disabled through the actual sanitizer runtime options. I’m adding the matching LeakSanitizer default hook now so the release examples carry both ASan and LSan defaults instead of only the ASan one.
+assistant> The build isolation is validated now: `build/release` and `build/debug` coexist, `make test` passes, and the release report binary still runs afterward with no manual environment prefix. I’m packaging the branch next: review the final diff, commit it, push it, and then create the PR.
+assistant> I’ve got the validated branch state and the diff is coherent. I’m committing the full branch now so I can push it and open the PR, then I’ll do one quick console-transcript refresh for the PR creation itself if needed.
+assistant> The branch is pushed. I’m creating the PR now against `main` with the validated testing notes attached.
+assistant> The PR is open at `#3`. I’m doing the transcript refresh now so the branch includes this validation, push, and PR creation activity as well, then I’ll push that final documentation-only update onto the same PR.
+```
+
+```diff
++ Isolated top-level and vendored subproject outputs into `build/debug` and `build/release`
++ Updated release docs and runtime paths to the mode-specific build directories
++ Added LeakSanitizer default options to the example executables
++ Pushed `feature/breach-report-subcomponent` and opened PR #3
+```
