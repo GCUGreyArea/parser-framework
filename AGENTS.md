@@ -116,6 +116,11 @@ Additional rules for this project:
 44. Demo rules and fixture messages should continue to expand toward real
     incident patterns and should include multi-system breach-attempt examples
     where practical, including systems such as Cloudflare.
+45. Command-line flags should use the `Args` class pattern from the vendored
+    `regex-parser`; keep the project-owned copy under local utils code and use
+    it for new CLI flag handling.
+46. Whenever functionality changes, update the unit tests and `README.md` in
+    the same branch so behavior, coverage, and documentation stay aligned.
 
 - JSMN_LIBRARY: subprojects/jsmn
 - REGEX_PARSER: subprojects/regex-parser
