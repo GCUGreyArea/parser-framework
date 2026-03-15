@@ -125,6 +125,10 @@ Additional rules for this project:
     collections with system, network, geography, and organisational ownership
     and operator metadata so remote producers can submit attributed bundles for
     local parsing, analysis, and eventual database storage.
+48. The scalable deployment model should support Docker Compose orchestration
+    with separate MongoDB, parser-worker, ingestion-API, and results-API
+    containers; ingestion and results must use separate REST APIs and distinct
+    MongoDB access scopes even when they share one MongoDB instance.
 
 - JSMN_LIBRARY: subprojects/jsmn
 - REGEX_PARSER: subprojects/regex-parser

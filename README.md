@@ -7,6 +7,8 @@ can be modified here without affecting the original sibling repositories.
 
 - `subprojects/jsmn`
 - `subprojects/regex-parser`
+- `docker`
+- `stack`
 - `include/parser_framework`
 - `src`
 - `examples`
@@ -95,6 +97,134 @@ operated at the same time. The worked example bundle in
 The ingestion pipeline resolves these references, parses each collection with
 the normal parser rules, and then runs the report analyzer across the bundle so
 correlations can span multiple systems and networks.
+
+### Bundle Shape
+
+At a minimum, an ingestion bundle looks like this:
+
+```json
+{
+  "schema_version": "1.0.0",
+  "bundle_id": "bundle-2026-03-15-demo-001",
+  "produced_at": "2026-03-15T09:30:00Z",
+  "producer": {
+    "component_id": "forwarder-eu-01",
+    "component_type": "remote-log-forwarder",
+    "organisation_id": "org-bae",
+    "region": "eu-west"
+  },
+  "storage": {
+    "backend": "mongodb",
+    "database": "parser_framework",
+    "bundle_collection": "ingestion_bundles",
+    "result_collection": "ingestion_results"
+  },
+  "organizations": [],
+  "sites": [],
+  "networks": [],
+  "systems": [],
+  "collections": [
+    {
+      "id": "col-cloudflare-log4shell",
+      "system_id": "sys-cloudflare-waf",
+      "network_id": "net-public-edge",
+      "site_id": "site-global-edge",
+      "log_type": "waf",
+      "format": "json",
+      "classification": "official-sensitive",
+      "observed_start": "2021-12-13T11:59:40Z",
+      "observed_end": "2021-12-13T11:59:40Z",
+      "attribution": {
+        "owner_org_ids": [],
+        "operator_org_ids": ["org-bae"],
+        "tenant_org_ids": ["org-sis"],
+        "provider_org_ids": ["org-cloudflare"]
+      },
+      "records": [
+        "{\"Action\":\"block\",...}"
+      ]
+    }
+  ]
+}
+```
+
+The important design choice is that `collections.records` contains raw log
+strings, while the surrounding document contains the metadata needed to
+attribute, store, and query those logs later.
+
+### Processing Flow
+
+The ingestion path is now:
+
+1. A remote or local component emits a bundle that conforms to
+   `schemas/log-ingestion-bundle.schema.json`.
+2. `IngestionLoader` validates and resolves the bundle into typed inventories
+   and collections.
+3. `IngestionPipeline` feeds each collection's `records` into the existing
+   parser framework.
+4. The optional report analyzer runs across all parsed collection output so
+   correlations can cross system or network boundaries.
+5. The resulting document can be stored locally with both raw attribution data
+   and derived parser/report output preserved.
+
+This model is aimed at eventual local persistence in a database such as
+MongoDB, where the bundle itself and the derived analysis result can be stored
+as related documents without losing the organisational context of the source
+logs.
+
+## Container Stack
+
+The repository now includes a Docker Compose deployment that separates
+ingestion, parsing, and results retrieval into distinct services:
+
+- `mongo`: single MongoDB instance running as a single-node replica set so
+  change streams are available
+- `mongo-init`: one-shot bootstrap container that initializes the replica set,
+  creates scoped users, and creates ingestion and analysis collections
+- `ingest-api`: external REST API for writing ingestion bundles
+- `parser-worker`: change-stream worker that claims pending bundles, runs the
+  parser, and writes derived results
+- `results-api`: external REST API for reading parsed output and reports
+
+This keeps the write path and read path separated at both the API and MongoDB
+access-control levels.
+
+### Mongo Separation
+
+The stack uses one MongoDB instance but separates the data logically:
+
+- `ingestion.bundles`: raw submitted bundles plus processing status
+- `analysis.parsed_results`: parser output grouped by bundle
+- `analysis.report_results`: derived report output grouped by bundle
+
+The default Compose bootstrap creates three users:
+
+- `ingest_user`: read/write access to `ingestion`
+- `parser_user`: read/write access to both `ingestion` and `analysis`
+- `results_user`: read-only access to `analysis`
+
+That means new data submission and results retrieval are intentionally handled
+through different Mongo credentials and different REST APIs even when the same
+MongoDB server is used underneath.
+
+### Event Flow
+
+The containerized runtime flow is:
+
+1. A client submits a bundle to `ingest-api`.
+2. `ingest-api` validates it against
+   `schemas/log-ingestion-bundle.schema.json` and inserts it into
+   `ingestion.bundles` with status `pending`.
+3. MongoDB emits a change-stream event for the insert.
+4. `parser-worker` claims that bundle, runs
+   `example_ingestion_bundle`, and captures the combined parser/report output.
+5. The worker writes parsed output into `analysis.parsed_results` and report
+   output into `analysis.report_results`.
+6. The worker marks the original bundle `completed` or `failed`.
+7. Clients query `results-api` for parsed results or reports.
+
+Because work claiming is status-driven, the worker model can be expanded later
+to multiple replicas without rewriting the document layout.
 
 ## Threat Analysis Techniques
 
@@ -290,6 +420,7 @@ make release
 ./build/release/example_parser --rules rules --messages messages
 ./build/release/example_breach_report --rules rules --report-rules report_rules --messages messages
 ./build/release/example_ingestion_bundle --bundle bundles/multi-tenant-ingestion.json --rules rules --report-rules report_rules
+make test_stack
 ```
 
 With no message-path arguments, the example parser defaults to the external
@@ -320,6 +451,62 @@ attributed log collections and raw records:
 
 Both example binaries also support `-h` / `--help` to print their CLI syntax.
 The ingestion example supports `-h` / `--help` as well.
+
+## Docker Compose
+
+The deployment files are:
+
+- `docker-compose.yml`
+- `docker/mongo/init-replica.sh`
+- `stack/Dockerfile.api`
+- `stack/Dockerfile.worker`
+
+To start the stack:
+
+```bash
+docker compose up --build
+```
+
+That exposes:
+
+- ingestion API on `http://localhost:8080`
+- results API on `http://localhost:8081`
+- MongoDB on `mongodb://localhost:27017`
+
+### Ingestion API
+
+Default route set:
+
+- `POST /api/v1/bundles`
+- `GET /api/v1/bundles/<bundle_id>/status`
+
+Example:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/bundles \
+  -H 'Content-Type: application/json' \
+  -H 'X-API-Key: ingest-api-key' \
+  --data @bundles/multi-tenant-ingestion.json
+```
+
+### Results API
+
+Default route set:
+
+- `GET /api/v1/results/<bundle_id>`
+- `GET /api/v1/reports/<bundle_id>`
+
+Examples:
+
+```bash
+curl -H 'X-API-Key: results-api-key' \
+  http://localhost:8081/api/v1/results/bundle-2026-03-15-demo-001
+
+curl -H 'X-API-Key: results-api-key' \
+  http://localhost:8081/api/v1/reports/bundle-2026-03-15-demo-001
+```
+
+These APIs intentionally do not share credentials or route namespaces.
 
 `make release` performs a clean optimized build without debug flags or address
 sanitization so the example binaries can be run directly from `build/release/`.

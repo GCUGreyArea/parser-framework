@@ -1,0 +1,49 @@
+FROM ubuntu:24.04 AS build
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    flex \
+    bison \
+    git \
+    pkg-config \
+    python3 \
+    python3-pip \
+    libyaml-cpp-dev \
+    libre2-dev \
+    libhyperscan-dev \
+    libgtest-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY . /app
+RUN make BUILD_MODE=release example_ingestion_bundle
+
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    libyaml-cpp0.8 \
+    libre2-10 \
+    libhyperscan5 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY stack/requirements.txt /app/stack/requirements.txt
+RUN pip3 install --break-system-packages --no-cache-dir -r /app/stack/requirements.txt
+
+COPY --from=build /app/build/release /app/build/release
+COPY --from=build /app/rules /app/rules
+COPY --from=build /app/report_rules /app/report_rules
+COPY --from=build /app/messages /app/messages
+COPY --from=build /app/bundles /app/bundles
+COPY --from=build /app/schemas /app/schemas
+COPY stack /app/stack
+
+ENV PYTHONPATH=/app
+
+CMD ["python3", "-m", "stack.parser_worker.worker"]

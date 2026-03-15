@@ -789,3 +789,27 @@ assistant> The ingestion bundle loader, schema, pipeline, example binary, tests,
 + Added `example_ingestion_bundle` for bundle-driven parsing and reporting
 + Added loader and pipeline tests plus README documentation for the ingestion flow
 ```
+
+## Session Continuation 15
+
+```text
+user@codex:~$ OK, we are now going to make this more scalable. The back end will be a mongodb instance that will run in a docker container...
+assistant> I would do this as a small event-driven stack, not as one monolith: `mongo`, `ingest-api`, `parser-worker`, `results-api`, all managed by Docker Compose, with MongoDB running as a single-node replica set so change streams can notify the worker.
+user@codex:~$ yes. Please implement this and create a new PR for the work and push that to the repo.
+assistant> I’m updating `main` first so this starts from the latest merged state, then I’ll create a fresh feature branch and reapply the shelved Docker/Mongo stack work there before continuing implementation and validation.
+assistant> `main` is current now. The Docker stack depends on the CLI and ingestion-bundle work that is still only on feature branches, so I’m creating a fresh branch from `main`, replaying those prerequisite commits onto it, and then I’ll reapply the shelved Docker/Mongo changes on top before finishing the stack.
+assistant> The prerequisite CLI and ingestion commits are on the new branch now. I’m reapplying the shelved Docker/Mongo stack work next, then I’ll resolve whatever drift shows up against the rebased branch state before I continue.
+assistant> I’m going with an event-driven but practical first cut: MongoDB as a single-node replica set for change streams, a parser-worker container that watches `ingestion.bundles` and runs the existing ingestion binary, and two separate REST services with different credentials for write-side and read-side access.
+assistant> I’m fixing the stack-specific issues now rather than papering over them in docs: parser Mongo auth, Python package layout, and temp-file handling in the worker. After that I’ll expand the README with the container/API flow and then validate the Python side of the stack locally.
+assistant> The Python side is clean now: helper tests pass and the stack packages compile. I’m waiting for the release ingestion binary rebuild to finish, then I’ll run the parser-side validation and update the README with the Compose/API usage.
+assistant> The parser-side bundle run is good. I’m doing one last direct C++ test-binary run so this branch is verified on both sides: the existing parser/report core and the new Python stack layer.
+assistant> The implementation is validated locally. I’m recording the new container-stack requirement in `AGENTS.md` and refreshing `CODEX-CONSOLE.md` now, including the one validation gap: this shell has no Docker Compose plugin, so I could validate the Python and parser layers but not a live Compose spin-up here.
+```
+
+```diff
++ Added a Docker Compose deployment with MongoDB, replica-set bootstrap, ingestion API, parser worker, and results API
++ Added separate MongoDB access scopes for ingestion, parser, and results services
++ Added Python stack helpers, worker logic, REST services, and unit tests
++ Updated README with the container architecture, Mongo separation, event flow, and API usage
++ Recorded the new scalable deployment requirement in `AGENTS.md`
+```

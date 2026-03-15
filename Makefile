@@ -52,7 +52,7 @@ INGESTION_DEP := $(BUILD_DIR)/examples/example_ingestion_bundle.d
 TEST_BIN := $(BUILD_DIR)/test_parser_framework
 TEST_DEP := $(BUILD_DIR)/tests/smoke.d
 
-.PHONY: all clean clean_all clean_subprojects demo example_breach_report example_ingestion_bundle example_parser release subprojects test
+.PHONY: all clean clean_all clean_subprojects demo example_breach_report example_ingestion_bundle example_parser release subprojects test test_stack
 
 all: example_parser
 
@@ -69,6 +69,9 @@ release:
 
 test: subprojects $(TEST_BIN)
 	$(RUN_ENV) $(TEST_BIN)
+
+test_stack:
+	python3 -m unittest discover -s stack/tests -v
 
 subprojects:
 	$(MAKE) -C subprojects/jsmn all \
