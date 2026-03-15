@@ -743,3 +743,15 @@ assistant> The binaries work with the new flags. I’m updating the README now s
 + Switched `example_breach_report` to `--rules`, `--report-rules`, and `--messages`
 + Updated the Makefile, tests, README, and AGENTS instructions for the new CLI path
 ```
+
+## Session Continuation 12
+
+```text
+user@codex:~$ could you please add an instruction into AGENTS.md to always update unit tests and the README.md file whenever functionality changes. Thank you. Also, please do that now.
+user@codex:~$ Add these things to your PR please.
+assistant> I’m adding the new standing instruction to `AGENTS.md`, refreshing the session transcript, and then I’ll push the branch so the open PR includes it. The CLI branch already has the matching README and unit-test updates, so this adds the project-wide requirement on top.
+```
+
+```diff
++ Added a standing AGENTS rule to update unit tests and `README.md` whenever functionality changes
+```
