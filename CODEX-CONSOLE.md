@@ -813,3 +813,25 @@ assistant> The implementation is validated locally. I’m recording the new cont
 + Updated README with the container architecture, Mongo separation, event flow, and API usage
 + Recorded the new scalable deployment requirement in `AGENTS.md`
 ```
+
+## Session Continuation 16
+
+```text
+user@codex:~$ docker compose should now work. Please validate the docker infrastructure
+assistant> I’m validating the Compose stack directly rather than assuming the previous implementation is still correct. I’ll check the Compose config, build the images, bring the stack up, and then run an end-to-end ingestion flow inside the Compose network so host-shell differences don’t hide container issues.
+assistant> The first pass showed the Compose file itself was valid, but MongoDB could not become healthy because replica-set auth was enabled without a keyfile. I fixed that by adding a dedicated Mongo startup wrapper and mounting a Compose-only keyfile.
+assistant> The next end-to-end run exposed worker-image issues that host builds had masked: stale copied build artifacts, a missing `uint64_t` include in vendored `jsmn`, a missing `nlohmann/json.hpp` build dependency for the vendored regex parser, and missing vendored shared libraries in the runtime image. I fixed each of those in the worker image and added regression checks for the Compose assets.
+assistant> After a clean rebuild, the remaining failure was rule-example file resolution in the worker runtime. I fixed two separate problems there: `message_file` example paths were too dependent on process cwd, and the worker image was not copying the `fragments/` files that those rule examples require.
+assistant> Validation is now clean: `make test` passed, the Compose asset tests passed, `docker compose ps` shows all services running with Mongo healthy, and an end-to-end bundle submission completed successfully with stored parsed results and generated reports.
+
+user@codex:~$ yes. Please do that.
+assistant> I’m preparing the commit now. First I’m checking the exact diff and whether `CODEX-CONSOLE.md` needs a session update before I write the commit message.
+```
+
+```diff
++ Added a Mongo keyfile-based startup path so the Compose replica set can run with auth enabled
++ Added a clean worker-image build path that ignores host build artifacts and includes vendored shared libraries plus `fragments/`
++ Fixed vendored clean-build issues exposed by Docker (`<cstdint>` in `jsmn`, `nlohmann-json3-dev` for the worker build)
++ Fixed rule-example `message_file` resolution so absolute rules paths work outside the repo cwd
++ Added Docker Compose regression tests and a loader regression test, and updated the README for the validated deployment path
+```

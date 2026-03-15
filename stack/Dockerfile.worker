@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     flex \
     bison \
     git \
+    nlohmann-json3-dev \
     pkg-config \
     python3 \
     python3-pip \
@@ -18,6 +19,7 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 COPY . /app
+RUN rm -rf build subprojects/jsmn/build subprojects/regex-parser/lib/build
 RUN make BUILD_MODE=release example_ingestion_bundle
 
 FROM ubuntu:24.04
@@ -26,6 +28,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
+    libasan8 \
     libyaml-cpp0.8 \
     libre2-10 \
     libhyperscan5 \
@@ -37,9 +40,12 @@ COPY stack/requirements.txt /app/stack/requirements.txt
 RUN pip3 install --break-system-packages --no-cache-dir -r /app/stack/requirements.txt
 
 COPY --from=build /app/build/release /app/build/release
+COPY --from=build /app/subprojects/jsmn/build/release /app/subprojects/jsmn/build/release
+COPY --from=build /app/subprojects/regex-parser/lib/build/release /app/subprojects/regex-parser/lib/build/release
 COPY --from=build /app/rules /app/rules
 COPY --from=build /app/report_rules /app/report_rules
 COPY --from=build /app/messages /app/messages
+COPY --from=build /app/fragments /app/fragments
 COPY --from=build /app/bundles /app/bundles
 COPY --from=build /app/schemas /app/schemas
 COPY stack /app/stack

@@ -203,6 +203,11 @@ The default Compose bootstrap creates three users:
 - `parser_user`: read/write access to both `ingestion` and `analysis`
 - `results_user`: read-only access to `analysis`
 
+Because the stack enables MongoDB authorization on a single-node replica set,
+the Compose runtime also injects an internal replica-set keyfile for Mongo's
+member authentication. That keeps replica-set startup and scoped user auth
+working together without manual container setup.
+
 That means new data submission and results retrieval are intentionally handled
 through different Mongo credentials and different REST APIs even when the same
 MongoDB server is used underneath.
@@ -460,6 +465,12 @@ The deployment files are:
 - `docker/mongo/init-replica.sh`
 - `stack/Dockerfile.api`
 - `stack/Dockerfile.worker`
+
+The worker image performs its own clean in-container release build of
+`example_ingestion_bundle` and carries the vendored parser shared libraries it
+depends on, plus the rule-example support files under `fragments/`, so the
+Compose stack does not rely on host build artifacts or host-specific
+shared-library versions.
 
 To start the stack:
 
