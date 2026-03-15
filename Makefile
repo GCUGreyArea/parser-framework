@@ -40,7 +40,7 @@ LIB_RPATH := -Wl,-rpath,$(PROJECT_ROOT)/$(BUILD_DIR) -Wl,-rpath,$(SUBPROJECT_JSM
 FRAMEWORK_LDFLAGS := $(SANITIZE_FLAGS) -L$(SUBPROJECT_JSMN_BUILD_DIR) -ljsmn -L$(SUBPROJECT_REGEX_BUILD_DIR) -lparser -lre2 -lhs $(YAML_CPP_LIBS) -Wl,-rpath,$(SUBPROJECT_JSMN_BUILD_DIR) -Wl,-rpath,$(SUBPROJECT_REGEX_BUILD_DIR)
 APP_LDFLAGS := $(EXTRA_APP_LIBS) $(SANITIZE_FLAGS) -L$(BUILD_DIR) -lparser_framework -L$(SUBPROJECT_JSMN_BUILD_DIR) -ljsmn -L$(SUBPROJECT_REGEX_BUILD_DIR) -lparser -lre2 -lhs $(YAML_CPP_LIBS) $(LIB_RPATH)
 
-FRAMEWORK_OBJ := $(BUILD_DIR)/src/DynamicPropertyEngine.o $(BUILD_DIR)/src/JSONParsingEngine.o $(BUILD_DIR)/src/KVParsingEngine.o $(BUILD_DIR)/src/MessageLoader.o $(BUILD_DIR)/src/ParserFramework.o $(BUILD_DIR)/src/RegexParsingEngine.o $(BUILD_DIR)/src/ReportAnalyzer.o $(BUILD_DIR)/src/RuleLoader.o
+FRAMEWORK_OBJ := $(BUILD_DIR)/src/DynamicPropertyEngine.o $(BUILD_DIR)/src/JSONParsingEngine.o $(BUILD_DIR)/src/KVParsingEngine.o $(BUILD_DIR)/src/MessageLoader.o $(BUILD_DIR)/src/ParserFramework.o $(BUILD_DIR)/src/RegexParsingEngine.o $(BUILD_DIR)/src/ReportAnalyzer.o $(BUILD_DIR)/src/RuleLoader.o $(BUILD_DIR)/src/utils/Args.o
 FRAMEWORK_DEP := $(FRAMEWORK_OBJ:.o=.d)
 FRAMEWORK_LIB := $(BUILD_DIR)/libparser_framework.so
 EXAMPLE_BIN := $(BUILD_DIR)/example_parser
@@ -82,6 +82,9 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)/examples
 	mkdir -p $(BUILD_DIR)/tests
 
+$(BUILD_DIR)/src/utils:
+	mkdir -p $(BUILD_DIR)/src/utils
+
 $(BUILD_DIR)/src/DynamicPropertyEngine.o: $(SRC_DIR)/DynamicPropertyEngine.cpp $(INCLUDE_DIR)/parser_framework/DynamicPropertyEngine.hpp $(INCLUDE_DIR)/parser_framework/ParserFramework.hpp | $(BUILD_DIR)
 	$(CXX) $(FRAMEWORK_CXXFLAGS) $(DEPFLAGS) -c $(SRC_DIR)/DynamicPropertyEngine.cpp -o $(BUILD_DIR)/src/DynamicPropertyEngine.o
 
@@ -105,6 +108,9 @@ $(BUILD_DIR)/src/ReportAnalyzer.o: $(SRC_DIR)/ReportAnalyzer.cpp $(INCLUDE_DIR)/
 
 $(BUILD_DIR)/src/RuleLoader.o: $(SRC_DIR)/RuleLoader.cpp $(INCLUDE_DIR)/parser_framework/ParsingEngines.hpp $(INCLUDE_DIR)/parser_framework/RuleLoader.hpp $(INCLUDE_DIR)/parser_framework/ParserFramework.hpp | $(BUILD_DIR)
 	$(CXX) $(FRAMEWORK_CXXFLAGS) $(DEPFLAGS) -c $(SRC_DIR)/RuleLoader.cpp -o $(BUILD_DIR)/src/RuleLoader.o
+
+$(BUILD_DIR)/src/utils/Args.o: $(SRC_DIR)/utils/Args.cpp $(INCLUDE_DIR)/parser_framework/utils/Args.hpp | $(BUILD_DIR) $(BUILD_DIR)/src/utils
+	$(CXX) $(FRAMEWORK_CXXFLAGS) $(DEPFLAGS) -c $(SRC_DIR)/utils/Args.cpp -o $(BUILD_DIR)/src/utils/Args.o
 
 $(FRAMEWORK_LIB): $(FRAMEWORK_OBJ)
 	$(CXX) -shared -o $(FRAMEWORK_LIB) $(FRAMEWORK_OBJ) $(FRAMEWORK_LDFLAGS)

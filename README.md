@@ -251,16 +251,18 @@ object in parser output.
 
 ```bash
 make release
-./build/release/example_parser rules
-./build/release/example_breach_report rules report_rules
+./build/release/example_parser --rules rules --messages messages
+./build/release/example_breach_report --rules rules --report-rules report_rules --messages messages
 ```
 
-With no message-path arguments, the example parser reads the external fixtures
-under `messages/`. You can also point it at one file or a directory tree:
+With no message-path arguments, the example parser defaults to the external
+fixtures under `messages/`. You can also point it at one file or a directory
+tree:
 
 ```bash
-./build/release/example_parser rules messages/aws-waf/sqli-block.json
-./build/release/example_parser rules messages
+./build/release/example_parser --messages messages/aws-waf/sqli-block.json
+./build/release/example_parser --messages messages
+./build/release/example_parser -m messages/aws-waf/sqli-block.json messages/cloudflare/log4shell-header-block.json
 ```
 
 The breach-report example reads the same external message files, parses them
@@ -268,8 +270,10 @@ through the framework, then runs the separate report-analysis component over the
 results:
 
 ```bash
-./build/release/example_breach_report rules report_rules messages
+./build/release/example_breach_report --rules rules --report-rules report_rules --messages messages
 ```
+
+Both example binaries also support `-h` / `--help` to print their CLI syntax.
 
 `make release` performs a clean optimized build without debug flags or address
 sanitization so the example binaries can be run directly from `build/release/`.
