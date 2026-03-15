@@ -7,6 +7,7 @@
 #include "parser_framework/ParserFramework.hpp"
 #include "parser_framework/ReportAnalyzer.hpp"
 #include "parser_framework/RuleLoader.hpp"
+#include "parser_framework/utils/Args.hpp"
 
 using namespace parser_framework;
 
@@ -127,6 +128,28 @@ TEST(ParserFramework, RendersNestedTokenObjectsForDottedNames) {
     EXPECT_NE(json.find("\"date\": \"1630333752\""), std::string::npos);
     EXPECT_NE(json.find("\"policy_name\": \"<policy>\""), std::string::npos);
     EXPECT_EQ(json.find("\"__policy_id_tag.product\""), std::string::npos);
+}
+
+TEST(Args, LoadsSingleAndMultiValueFlags) {
+    const char* argv[] = {
+        "example_parser",
+        "--rules", "custom-rules",
+        "--messages", "messages/aws-waf/sqli-block.json",
+        "messages/cloudflare/log4shell-header-block.json",
+        "-m", "messages/suricata/cryptfile2-alert.json"
+    };
+
+    utils::Args args(static_cast<int>(sizeof(argv) / sizeof(argv[0])), argv);
+    args.add_string_value("-r", "--rules", "rules");
+    args.add_string_values("-m", "--messages", {"messages"});
+
+    EXPECT_EQ(args.get_string_value("-r"), "custom-rules");
+
+    const std::vector<std::string> messages = args.get_string_values("-m");
+    ASSERT_EQ(messages.size(), 3u);
+    EXPECT_EQ(messages[0], "messages/aws-waf/sqli-block.json");
+    EXPECT_EQ(messages[1], "messages/cloudflare/log4shell-header-block.json");
+    EXPECT_EQ(messages[2], "messages/suricata/cryptfile2-alert.json");
 }
 
 TEST(RuleLoader, LoadsCheckPointRulesAndParsesMessage) {

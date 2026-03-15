@@ -721,3 +721,25 @@ assistant> I committed the branch work, pushed `feature/threat-analysis-multi-sy
 + Extended `ReportAnalyzer` and `report_rules/` with multi-system campaign correlation
 + Updated tests and README to cover realistic threat-analysis techniques and correlated breach-attempt reporting
 ```
+
+## Session Continuation 11
+
+```text
+user@codex:~$ I now need you to add flags for input. In regex-parser, under src you will find a class called Args. I would like you to use that to add a --rules -r and a --messages -m option to load rules and messages. Use this class for all command line flags in future development. Feel free to move it into a library in this roject called utils.
+assistant> I’m pulling in the existing `Args` implementation from the vendored `regex-parser` first, then I’ll wire `example_parser` and `example_breach_report` to use flag-based `--rules/-r` and `--messages/-m` loading instead of ad hoc positional parsing.
+assistant> I found the vendored `Args` implementation in `subprojects/regex-parser/src`. Next I’m reading that class and the current example entry points so I can transplant it cleanly into this repo and keep the CLI behavior consistent.
+assistant> This is a separate change from the threat-analysis work, so I’m putting it on its own branch before editing. After that I’ll add a small `utils::Args` library and switch both example binaries over to flag-based argument parsing.
+assistant> I’m making one deliberate extension while I move `Args`: the original class only handles a single string value, but this repo’s parser already supports more than one message path. I’m preserving that behavior by adding multi-value support to the local `utils` copy instead of shrinking the CLI.
+assistant> The CLI code is switched over. I’m building and running the binaries with the new flag syntax now, then I’ll update the docs and project instructions once the implementation is verified.
+assistant> The implementation is fine; the failure is just a Makefile detail. The new object file lives under `build/.../src/utils`, and that subdirectory wasn’t guaranteed to exist on incremental builds, so I’m fixing the target graph rather than papering over it.
+assistant> The direct debug binary passed all 11 tests, including the new `Args` coverage. Release is still linking the examples, then I’ll run both binaries with the new flag syntax.
+assistant> The binaries work with the new flags. I’m updating the README now so the documented invocations match the new CLI, and I’ll add the standing `Args` instruction to `AGENTS.md` before I refresh the session transcript.
+```
+
+```diff
++ Added a project-owned `utils::Args` copy based on the vendored `regex-parser` implementation
++ Extended `Args` with multi-value support so `--messages` can accept multiple paths
++ Switched `example_parser` to `--rules/-r` and `--messages/-m`
++ Switched `example_breach_report` to `--rules`, `--report-rules`, and `--messages`
++ Updated the Makefile, tests, README, and AGENTS instructions for the new CLI path
+```
