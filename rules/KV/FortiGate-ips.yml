@@ -35,7 +35,8 @@ rules:
       hostname: string
       url: string
     dynamic_properties:
-      - 'if action == "blocked" then threat.event = "ips_detection" and threat.source_ip = srcip and threat.destination_ip = dstip and threat.attack = attack and threat.severity = severity and threat.outcome = action'
+      - 'if action == "blocked" then threat.event = "ips_detection" and threat.source_ip = srcip and threat.destination_ip = dstip and threat.attack = attack and threat.severity = severity and threat.outcome = action and threat.system = "fortigate_ips"'
+      - 'if attack ?= "Log4j" then threat.family = "log4shell" and threat.technique_id = "T1190" and threat.tactic_id = "TA0001"'
     examples:
       - message_file: 'messages/fortigate/ips-log4shell.log'
         expect:
@@ -54,5 +55,9 @@ rules:
             threat.attack: "Apache.Log4j.Error.Log.Remote.Code.Execution"
             threat.severity: "critical"
             threat.outcome: "blocked"
+            threat.system: "fortigate_ips"
+            threat.family: "log4shell"
+            threat.technique_id: "T1190"
+            threat.tactic_id: "TA0001"
           absent_tokens:
             - client_ip

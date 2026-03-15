@@ -11,6 +11,7 @@ can be modified here without affecting the original sibling repositories.
 - `src`
 - `examples`
 - `messages`
+- `messages/cloudflare`
 - `report_rules`
 - `rules`
 - `rules/KV`
@@ -29,6 +30,8 @@ The current framework slice is in place:
 - KV and JSON parsing using dedicated parser components and `jsmn` JSONPath extraction
 - dynamic-property evaluation to derive additional parser-side metadata
 - a separate report-analysis subcomponent that consumes parsed output and emits breach-oriented JSON reports
+- ATT&CK-style enrichment for threat family, tactic, and technique identifiers
+- multi-system correlation for repeated attack families seen across distinct systems
 - shared-library build output for the framework
 - example parser executable that emits JSON in a `regex-parser`-style `parsed` array
 - example parser defaults to the external message fixtures under `messages/`
@@ -56,6 +59,29 @@ The framework itself is only responsible for orchestration. Regex matching runs
 through the vendored `regex-parser` components, KV parsing runs through a
 separate KV parser component, JSON extraction uses `jsmn` JSONPath, and report
 generation is handled by a separate analysis subcomponent.
+
+## Threat Analysis Techniques
+
+The demo rules now use a few practical threat-analysis techniques that are
+useful when moving from raw parser output toward incident-oriented reporting:
+
+- ATT&CK-style enrichment: parser rules derive `threat.family`,
+  `threat.technique_id`, and `threat.tactic_id` so downstream reporting can
+  normalize exploit and post-compromise activity across products.
+- Multi-signal correlation: the report analyzer correlates events from distinct
+  systems when they share a source IP and attack family, producing a
+  higher-level multi-system breach-attempt report.
+- Defense-in-depth evidence: the demo includes edge, network, and IDS-style
+  telemetry so the same activity can be observed at different points in the
+  attack path.
+- Stage-aware reporting: event rules still emit per-system reports such as
+  `initial_access`, `exploitation`, and `command_and_control`, while correlated
+  reports summarize repeated hostile activity across those stages.
+
+The current fixtures include a Cloudflare firewall event modeled on the
+official firewall-events dataset and Cloudflare's published Log4Shell managed
+rule IDs, plus FortiGate IPS and Suricata examples so the report layer can show
+both single-system detections and correlated multi-system activity.
 
 ## How the rules engine works
 

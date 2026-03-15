@@ -113,6 +113,9 @@ Additional rules for this project:
     compile with debug flags or address sanitization.
 43. Debug and release builds should use separate build directories so the two
     modes do not reuse stale artifacts.
+44. Demo rules and fixture messages should continue to expand toward real
+    incident patterns and should include multi-system breach-attempt examples
+    where practical, including systems such as Cloudflare.
 
 - JSMN_LIBRARY: subprojects/jsmn
 - REGEX_PARSER: subprojects/regex-parser

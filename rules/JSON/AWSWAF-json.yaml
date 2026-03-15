@@ -17,7 +17,7 @@ rules:
       http_method: string
       request_id: string
     dynamic_properties:
-      - 'if action == "BLOCK" and terminating_rule_id ?= "SQLi" then threat.event = "web_attack" and threat.source_ip = client_ip and threat.rule_name = terminating_rule_id and threat.severity = "high" and threat.outcome = action'
+      - 'if action == "BLOCK" and terminating_rule_id ?= "SQLi" then threat.event = "web_attack" and threat.source_ip = client_ip and threat.rule_name = terminating_rule_id and threat.severity = "high" and threat.outcome = action and threat.family = "sqli" and threat.technique_id = "T1190" and threat.tactic_id = "TA0001" and threat.system = "aws_waf"'
     json_matches:
       - path: "$.formatVersion"
         equals: "1"
@@ -53,6 +53,10 @@ rules:
             threat.rule_name: "STMTest_SQLi_XSS"
             threat.severity: "high"
             threat.outcome: "BLOCK"
+            threat.family: "sqli"
+            threat.technique_id: "T1190"
+            threat.tactic_id: "TA0001"
+            threat.system: "aws_waf"
           absent_tokens:
             - service
             - srcip

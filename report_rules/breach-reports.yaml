@@ -4,16 +4,30 @@ reports:
     bindings:
       - 1c507cb9-91d4-4024-871d-49f38ee08f36
     dynamic_properties:
-      - 'if threat.event == "web_attack" then report.event = "breach_attempt" and report.phase = "initial_access" and report.system = "aws_waf" and report.source.ip = threat.source_ip and report.attack.name = threat.rule_name and report.outcome = threat.outcome and report.target.uri = uri'
+      - 'if threat.event == "web_attack" then report.event = "breach_attempt" and report.phase = "initial_access" and report.system = threat.system and report.source.ip = threat.source_ip and report.attack.name = threat.rule_name and report.attack.family = threat.family and report.technique.id = threat.technique_id and report.tactic.id = threat.tactic_id and report.outcome = threat.outcome and report.target.uri = uri'
+  - id: 5d1e6e47-ae7a-4ec7-92f4-b6c221cd23b7
+    name: CloudflareLog4ShellBreachAttemptReport
+    bindings:
+      - 3fb1b277-7ec1-4cb9-a4f8-e9a87f9509d1
+    dynamic_properties:
+      - 'if threat.event == "web_attack" then report.event = "breach_attempt" and report.phase = "initial_access" and report.system = threat.system and report.source.ip = threat.source_ip and report.attack.name = threat.rule_name and report.attack.family = threat.family and report.technique.id = threat.technique_id and report.tactic.id = threat.tactic_id and report.outcome = threat.outcome and report.target.host = threat.target_host and report.target.uri = threat.uri'
   - id: 147f53e2-4fd8-4e12-b3b8-8d1cb2b51470
     name: FortiGateIPSBreachAttemptReport
     bindings:
       - 5d6ce0b2-55fd-4bb8-b376-786b63d79795
     dynamic_properties:
-      - 'if threat.event == "ips_detection" then report.event = "breach_attempt" and report.phase = "exploitation" and report.system = "fortigate_ips" and report.source.ip = threat.source_ip and report.target.ip = threat.destination_ip and report.attack.name = threat.attack and report.severity = threat.severity and report.outcome = threat.outcome'
+      - 'if threat.event == "ips_detection" then report.event = "breach_attempt" and report.phase = "exploitation" and report.system = threat.system and report.source.ip = threat.source_ip and report.target.ip = threat.destination_ip and report.attack.name = threat.attack and report.attack.family = threat.family and report.technique.id = threat.technique_id and report.tactic.id = threat.tactic_id and report.severity = threat.severity and report.outcome = threat.outcome'
   - id: e64ced89-4c39-4543-9e6c-f602e0f73d21
     name: SuricataPostCompromiseReport
     bindings:
       - d6874d8d-1c8a-4ff8-a686-7608e35f3371
     dynamic_properties:
-      - 'if threat.event == "post_compromise_activity" then report.event = "post_compromise_activity" and report.phase = "command_and_control" and report.system = "suricata" and report.source.ip = threat.source_ip and report.target.ip = threat.destination_ip and report.attack.name = threat.signature and report.severity = threat.severity'
+      - 'if threat.event == "post_compromise_activity" then report.event = "post_compromise_activity" and report.phase = "command_and_control" and report.system = threat.system and report.source.ip = threat.source_ip and report.target.ip = threat.destination_ip and report.attack.name = threat.signature and report.attack.family = threat.family and report.technique.id = threat.technique_id and report.tactic.id = threat.tactic_id and report.severity = threat.severity'
+correlations:
+  - id: 9b9d0b3e-5b1c-4e34-a5ae-77abcf2ef0a1
+    name: MultiSystemLog4ShellCampaign
+    family: log4shell
+    min_distinct_systems: 2
+    systems:
+      - cloudflare_waf
+      - fortigate_ips

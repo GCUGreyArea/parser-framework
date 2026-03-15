@@ -38,6 +38,10 @@ std::string aws_waf_message() {
     return MessageLoader::load_message_file("messages/aws-waf/sqli-block.json");
 }
 
+std::string cloudflare_message() {
+    return MessageLoader::load_message_file("messages/cloudflare/log4shell-header-block.json");
+}
+
 std::string suricata_message() {
     return MessageLoader::load_message_file("messages/suricata/cryptfile2-alert.json");
 }
@@ -127,7 +131,7 @@ TEST(ParserFramework, RendersNestedTokenObjectsForDottedNames) {
 
 TEST(RuleLoader, LoadsCheckPointRulesAndParsesMessage) {
     const std::vector<MessageRule> rules = RuleLoader::load_rules("rules");
-    ASSERT_EQ(rules.size(), 5u);
+    ASSERT_EQ(rules.size(), 6u);
 
     ParserFramework framework(rules);
     ParseResult result = framework.parse_message(checkpoint_message());
@@ -258,6 +262,41 @@ TEST(RuleLoader, LoadsAwsWafRulesAndParsesMessage) {
     EXPECT_EQ(result.properties.at("threat.source_ip"), "1.1.1.1");
     EXPECT_EQ(result.properties.at("threat.rule_name"), "STMTest_SQLi_XSS");
     EXPECT_EQ(result.properties.at("threat.outcome"), "BLOCK");
+    EXPECT_EQ(result.properties.at("threat.family"), "sqli");
+    EXPECT_EQ(result.properties.at("threat.technique_id"), "T1190");
+    EXPECT_EQ(result.properties.at("threat.tactic_id"), "TA0001");
+    EXPECT_EQ(result.properties.at("threat.system"), "aws_waf");
+}
+
+TEST(RuleLoader, LoadsCloudflareRulesAndParsesMessage) {
+    ParserFramework framework(RuleLoader::load_rules("rules"));
+    ParseResult result = framework.parse_message(cloudflare_message());
+
+    ASSERT_TRUE(result.matched);
+    ASSERT_TRUE(result.errors.empty());
+    EXPECT_EQ(result.message_rule_name, "Cloudflare Firewall Event");
+    ASSERT_EQ(result.token_extraction.size(), 2u);
+    EXPECT_EQ(result.token_extraction[0], "3fb1b277-7ec1-4cb9-a4f8-e9a87f9509d1");
+    EXPECT_EQ(result.token_extraction[1], "a8f4f3d2-12be-4f3a-a1e4-2a4a2b35bcb2");
+
+    const Token* action = find_token(result, "action");
+    ASSERT_NE(action, nullptr);
+    EXPECT_EQ(action->value, "block");
+
+    const Token* client_ip = find_token(result, "client_ip");
+    ASSERT_NE(client_ip, nullptr);
+    EXPECT_EQ(client_ip->value, "198.51.100.25");
+
+    const Token* rule_id = find_token(result, "rule_id");
+    ASSERT_NE(rule_id, nullptr);
+    EXPECT_EQ(rule_id->value, "6b1cc72dff9746469d4695a474430f12");
+
+    EXPECT_EQ(result.properties.at("threat.event"), "web_attack");
+    EXPECT_EQ(result.properties.at("threat.source_ip"), "198.51.100.25");
+    EXPECT_EQ(result.properties.at("threat.family"), "log4shell");
+    EXPECT_EQ(result.properties.at("threat.technique_id"), "T1190");
+    EXPECT_EQ(result.properties.at("threat.tactic_id"), "TA0001");
+    EXPECT_EQ(result.properties.at("threat.system"), "cloudflare_waf");
 }
 
 TEST(RuleLoader, LoadsSuricataRulesAndParsesMessage) {
@@ -284,15 +323,20 @@ TEST(RuleLoader, LoadsSuricataRulesAndParsesMessage) {
     EXPECT_EQ(result.properties.at("threat.destination_ip"), "192.0.2.55");
     EXPECT_EQ(result.properties.at("threat.signature"), "ET MALWARE Win32/CryptFile2 / Revenge Ransomware Checkin M3");
     EXPECT_EQ(result.properties.at("threat.severity"), "1");
+    EXPECT_EQ(result.properties.at("threat.family"), "cryptfile2");
+    EXPECT_EQ(result.properties.at("threat.technique_id"), "T1071");
+    EXPECT_EQ(result.properties.at("threat.tactic_id"), "TA0011");
+    EXPECT_EQ(result.properties.at("threat.system"), "suricata");
 }
 
 TEST(RuleLoader, LoadsExampleMessagesFromRules) {
     const std::vector<std::string> examples = RuleLoader::load_example_messages("rules");
 
-    ASSERT_EQ(examples.size(), 5u);
+    ASSERT_EQ(examples.size(), 6u);
     EXPECT_NE(std::find(examples.begin(), examples.end(), checkpoint_message()), examples.end());
     EXPECT_NE(std::find(examples.begin(), examples.end(), fortigate_message()), examples.end());
     EXPECT_NE(std::find(examples.begin(), examples.end(), aws_waf_message()), examples.end());
+    EXPECT_NE(std::find(examples.begin(), examples.end(), cloudflare_message()), examples.end());
     EXPECT_NE(std::find(examples.begin(), examples.end(), fortigate_ips_message()), examples.end());
     EXPECT_NE(std::find(examples.begin(), examples.end(), suricata_message()), examples.end());
 }
@@ -302,6 +346,7 @@ TEST(ReportAnalyzer, GeneratesBreachReportsFromParsedOutput) {
     ReportAnalyzer analyzer(ReportRuleLoader::load_rules("report_rules"));
 
     const std::vector<ParseResult> results = framework.parse_messages({
+        cloudflare_message(),
         aws_waf_message(),
         fortigate_ips_message(),
         suricata_message(),
@@ -310,14 +355,20 @@ TEST(ReportAnalyzer, GeneratesBreachReportsFromParsedOutput) {
     });
 
     const std::vector<ReportFinding> reports = analyzer.analyze(results);
-    ASSERT_EQ(reports.size(), 3u);
+    ASSERT_EQ(reports.size(), 5u);
 
     const std::string json = render_reports_as_json(reports);
     EXPECT_NE(json.find("\"phase\": \"initial_access\""), std::string::npos);
     EXPECT_NE(json.find("\"phase\": \"exploitation\""), std::string::npos);
     EXPECT_NE(json.find("\"phase\": \"command_and_control\""), std::string::npos);
+    EXPECT_NE(json.find("\"event\": \"multi_system_breach_attempt\""), std::string::npos);
     EXPECT_NE(json.find("\"source\": {\n        \"message_rule_id\": \"1c507cb9-91d4-4024-871d-49f38ee08f36\""), std::string::npos);
-    EXPECT_NE(json.find("\"attack\": {\n          \"name\": \"Apache.Log4j.Error.Log.Remote.Code.Execution\""), std::string::npos);
+    EXPECT_NE(json.find("\"message_rule_name\": \"Cloudflare Firewall Event\""), std::string::npos);
+    EXPECT_NE(json.find("\"attack\": {\n          \"family\": \"log4shell\",\n          \"name\": \"Apache.Log4j.Error.Log.Remote.Code.Execution\""), std::string::npos);
+    EXPECT_NE(json.find("\"family\": \"log4shell\""), std::string::npos);
+    EXPECT_NE(json.find("\"technique\": {\n          \"id\": \"T1190\""), std::string::npos);
+    EXPECT_NE(json.find("\"sources\": ["), std::string::npos);
+    EXPECT_NE(json.find("\"systems\": {\n          \"count\": \"2\""), std::string::npos);
     EXPECT_NE(json.find("\"system\": \"suricata\""), std::string::npos);
     EXPECT_EQ(json.find("\"report\": {\n        \"report\":"), std::string::npos);
 }

@@ -1,0 +1,16 @@
+messages:
+  - id: 3fb1b277-7ec1-4cb9-a4f8-e9a87f9509d1
+    name: Cloudflare Firewall Event
+    message_filter:
+      - pattern: '^\{.*"ClientIP":"(?<client_ip>[^"]+)".*"Kind":"(?<kind>firewall)".*"RuleID":"(?<rule_id>[^"]+)".*\}$'
+    sections:
+      - id: cloudflare_firewall_payload
+        parser: json
+        ruleset: CloudflareFirewallJson
+    examples:
+      - message_file: 'messages/cloudflare/log4shell-header-block.json'
+        expect:
+          captures:
+            kind: "firewall"
+            client_ip: "198.51.100.25"
+            rule_id: "6b1cc72dff9746469d4695a474430f12"

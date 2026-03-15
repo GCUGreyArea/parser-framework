@@ -701,3 +701,22 @@ assistant> The core user-facing fix is verified now: `make release` builds an op
 + Added built-in ASan default options to the example executables
 + Linked the release executables explicitly against `libasan` because the host `yaml-cpp` is ASan-instrumented
 ```
+
+## Session Continuation 10
+
+```text
+user@codex:~$ I would now like you to research some threat analysis techniques and expand the demo rules and messages to encompas other systems and if posible multi system breach attempts. I would like you, were posssible, to use data from real life incidents and systems such as cloudflare.
+assistant> I’m researching concrete threat-analysis patterns first so the demo expansion is grounded in real detections rather than generic sample logs. I’ll use primary references for any live systems or published incident details, then map that into new fixtures, rules, and higher-level report logic.
+assistant> The strongest fit for this framework is ATT&CK-style enrichment plus multi-signal correlation: tag parsed events with attack family, tactic, and technique IDs, then add a separate report rule layer that can correlate repeated activity across distinct systems.
+assistant> I found a good Cloudflare path: the official firewall-events field reference gives us a realistic event shape, and Cloudflare’s Log4Shell write-up includes managed rule IDs that can anchor a real WAF-style breach-attempt fixture without inventing the detection story.
+assistant> I’m expanding the demo in three places now: add a Cloudflare firewall message and JSON rules, enrich the existing AWS/FortiGate/Suricata rules with ATT&CK-style properties, and extend `ReportAnalyzer` so it can emit a correlated multi-system campaign report when the same attack family appears across multiple controls.
+assistant> Validation is clean: the release reporter now emits AWS WAF, Cloudflare, FortiGate IPS, Suricata, and a correlated multi-system Log4Shell campaign report, and the direct debug test binary passes all 10 tests.
+```
+
+```diff
++ Added a Cloudflare firewall-event fixture modeled on the official field schema
++ Added Cloudflare identification and JSON extraction rules
++ Enriched AWS WAF, FortiGate IPS, and Suricata rules with ATT&CK-style family/tactic/technique/system properties
++ Extended `ReportAnalyzer` and `report_rules/` with multi-system campaign correlation
++ Updated tests and README to cover realistic threat-analysis techniques and correlated breach-attempt reporting
+```

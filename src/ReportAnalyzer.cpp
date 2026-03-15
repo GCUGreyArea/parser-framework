@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -214,13 +216,181 @@ void load_report_file(const std::filesystem::path& file, std::vector<ReportRule>
     }
 }
 
+void load_correlation_file(const std::filesystem::path& file, std::vector<CorrelationRule>& rules) {
+    YAML::Node root = YAML::LoadFile(file.string());
+    const YAML::Node correlations = root["correlations"];
+    if (!correlations || !correlations.IsSequence()) {
+        return;
+    }
+
+    for (const auto& correlation_node : correlations) {
+        CorrelationRule rule;
+        rule.id = correlation_node["id"].as<std::string>();
+        rule.name = correlation_node["name"].as<std::string>();
+        rule.family = correlation_node["family"].as<std::string>();
+        if (const YAML::Node min_distinct_systems = correlation_node["min_distinct_systems"]) {
+            rule.min_distinct_systems = min_distinct_systems.as<std::size_t>();
+        }
+
+        const YAML::Node systems = correlation_node["systems"];
+        if (systems && systems.IsSequence()) {
+            for (const auto& system : systems) {
+                rule.systems.push_back(system.as<std::string>());
+            }
+        }
+
+        rules.push_back(std::move(rule));
+    }
+}
+
+std::string join_values(const std::vector<std::string>& values) {
+    std::ostringstream stream;
+    for (std::size_t i = 0; i < values.size(); ++i) {
+        if (i != 0) {
+            stream << ", ";
+        }
+        stream << values[i];
+    }
+
+    return stream.str();
+}
+
+std::vector<ReportFinding> correlate_findings(
+    const std::vector<ReportFinding>& findings,
+    const std::vector<CorrelationRule>& rules) {
+    std::vector<ReportFinding> correlated;
+    if (rules.empty()) {
+        return correlated;
+    }
+
+    struct Group {
+        std::string source_ip;
+        std::string family;
+        std::vector<const ReportFinding*> findings;
+        std::vector<std::string> systems_in_order;
+        std::set<std::string> systems;
+    };
+
+    std::map<std::pair<std::string, std::string>, Group> groups;
+    for (const auto& finding : findings) {
+        const auto source_ip_it = finding.properties.find("source.ip");
+        const auto family_it = finding.properties.find("attack.family");
+        const auto system_it = finding.properties.find("system");
+        if (source_ip_it == finding.properties.end() ||
+            family_it == finding.properties.end() ||
+            system_it == finding.properties.end()) {
+            continue;
+        }
+
+        const std::pair<std::string, std::string> key(source_ip_it->second, family_it->second);
+        Group& group = groups[key];
+        group.source_ip = source_ip_it->second;
+        group.family = family_it->second;
+        group.findings.push_back(&finding);
+        if (group.systems.insert(system_it->second).second) {
+            group.systems_in_order.push_back(system_it->second);
+        }
+    }
+
+    for (const auto& rule : rules) {
+        for (const auto& entry : groups) {
+            const Group& group = entry.second;
+            if (group.family != rule.family) {
+                continue;
+            }
+            if (group.systems.size() < rule.min_distinct_systems) {
+                continue;
+            }
+
+            bool required_systems_present = true;
+            for (const auto& required : rule.systems) {
+                if (group.systems.find(required) == group.systems.end()) {
+                    required_systems_present = false;
+                    break;
+                }
+            }
+            if (!required_systems_present) {
+                continue;
+            }
+
+            ReportFinding correlated_finding;
+            correlated_finding.id = rule.id;
+            correlated_finding.name = rule.name;
+
+            const ReportFinding& first = *group.findings.front();
+            correlated_finding.message_rule_id = first.message_rule_id;
+            correlated_finding.message_rule_name = first.message_rule_name;
+            correlated_finding.event_name = first.event_name;
+
+            std::set<std::string> seen_sources;
+            for (const ReportFinding* finding : group.findings) {
+                for (const auto& source : finding->sources) {
+                    const std::string key =
+                        source.message_rule_id + "\n" + source.message_rule_name + "\n" + source.event_name;
+                    if (seen_sources.insert(key).second) {
+                        correlated_finding.sources.push_back(source);
+                    }
+                }
+            }
+
+            correlated_finding.properties["event"] = "multi_system_breach_attempt";
+            correlated_finding.properties["phase"] =
+                first.properties.count("phase") ? first.properties.at("phase") : "initial_access";
+            correlated_finding.properties["system"] = "multi_system";
+            correlated_finding.properties["source.ip"] = group.source_ip;
+            correlated_finding.properties["attack.family"] = group.family;
+            if (first.properties.count("attack.name") != 0) {
+                correlated_finding.properties["attack.name"] = first.properties.at("attack.name");
+            }
+            if (first.properties.count("technique.id") != 0) {
+                correlated_finding.properties["technique.id"] = first.properties.at("technique.id");
+            }
+            if (first.properties.count("tactic.id") != 0) {
+                correlated_finding.properties["tactic.id"] = first.properties.at("tactic.id");
+            }
+            correlated_finding.properties["systems.count"] = std::to_string(group.systems.size());
+            correlated_finding.properties["systems.names"] = join_values(group.systems_in_order);
+            correlated_finding.properties["evidence.count"] = std::to_string(group.findings.size());
+            correlated_finding.properties["summary"] =
+                "Observed " + group.family + " activity from " + group.source_ip +
+                " across " + join_values(group.systems_in_order);
+            correlated_finding.properties["outcome"] = "observed";
+
+            correlated.push_back(std::move(correlated_finding));
+        }
+    }
+
+    return correlated;
+}
+
+void render_source(std::ostringstream& stream, const ReportSource& source, std::size_t depth) {
+    append_indent(stream, depth);
+    stream << "{\n";
+    append_indent(stream, depth + 1);
+    stream << "\"message_rule_id\": \"" << escape_json_string(source.message_rule_id) << "\",\n";
+    append_indent(stream, depth + 1);
+    stream << "\"message_rule_name\": \"" << escape_json_string(source.message_rule_name) << "\",\n";
+    append_indent(stream, depth + 1);
+    stream << "\"event_name\": \"" << escape_json_string(source.event_name) << "\"\n";
+    append_indent(stream, depth);
+    stream << "}";
+}
+
 } // namespace
 
 ReportAnalyzer::ReportAnalyzer(std::vector<ReportRule> rules)
     : m_rules(std::move(rules)) {}
 
+ReportAnalyzer::ReportAnalyzer(ReportRuleSet ruleset)
+    : m_rules(std::move(ruleset.reports)),
+      m_correlation_rules(std::move(ruleset.correlations)) {}
+
 void ReportAnalyzer::add_rule(ReportRule rule) {
     m_rules.push_back(std::move(rule));
+}
+
+void ReportAnalyzer::add_correlation_rule(CorrelationRule rule) {
+    m_correlation_rules.push_back(std::move(rule));
 }
 
 std::vector<ReportFinding> ReportAnalyzer::analyze(const ParseResult& result) const {
@@ -255,6 +425,7 @@ std::vector<ReportFinding> ReportAnalyzer::analyze(const ParseResult& result) co
             result.message_rule_id,
             result.message_rule_name,
             result.event_name,
+            {ReportSource{result.message_rule_id, result.message_rule_name, result.event_name}},
             std::move(properties)
         });
     }
@@ -270,12 +441,15 @@ std::vector<ReportFinding> ReportAnalyzer::analyze(const std::vector<ParseResult
         findings.insert(findings.end(), next.begin(), next.end());
     }
 
+    const std::vector<ReportFinding> correlated = correlate_findings(findings, m_correlation_rules);
+    findings.insert(findings.end(), correlated.begin(), correlated.end());
+
     return findings;
 }
 
 namespace ReportRuleLoader {
 
-std::vector<ReportRule> load_rules(const std::string& path) {
+ReportRuleSet load_rules(const std::string& path) {
     namespace fs = std::filesystem;
 
     const fs::path input(path);
@@ -283,12 +457,13 @@ std::vector<ReportRule> load_rules(const std::string& path) {
         throw std::runtime_error("Report rules path does not exist [" + path + "]");
     }
 
-    std::vector<ReportRule> rules;
+    ReportRuleSet ruleset;
     for_each_yaml_file(input, [&](const fs::path& file) {
-        load_report_file(file, rules);
+        load_report_file(file, ruleset.reports);
+        load_correlation_file(file, ruleset.correlations);
     });
 
-    return rules;
+    return ruleset;
 }
 
 } // namespace ReportRuleLoader
@@ -315,14 +490,34 @@ std::string render_reports_as_json(const std::vector<ReportFinding>& reports) {
 
         append_indent(stream, 3);
         stream << "\"source\": {\n";
+        const ReportSource primary_source{
+            report.message_rule_id,
+            report.message_rule_name,
+            report.event_name
+        };
         append_indent(stream, 4);
-        stream << "\"message_rule_id\": \"" << escape_json_string(report.message_rule_id) << "\",\n";
+        stream << "\"message_rule_id\": \"" << escape_json_string(primary_source.message_rule_id) << "\",\n";
         append_indent(stream, 4);
-        stream << "\"message_rule_name\": \"" << escape_json_string(report.message_rule_name) << "\",\n";
+        stream << "\"message_rule_name\": \"" << escape_json_string(primary_source.message_rule_name) << "\",\n";
         append_indent(stream, 4);
-        stream << "\"event_name\": \"" << escape_json_string(report.event_name) << "\"\n";
+        stream << "\"event_name\": \"" << escape_json_string(primary_source.event_name) << "\"\n";
         append_indent(stream, 3);
-        stream << "},\n";
+        stream << "}";
+        if (report.sources.size() > 1) {
+            stream << ",\n";
+            append_indent(stream, 3);
+            stream << "\"sources\": [\n";
+            for (std::size_t source_index = 0; source_index < report.sources.size(); ++source_index) {
+                render_source(stream, report.sources[source_index], 4);
+                if (source_index + 1 != report.sources.size()) {
+                    stream << ",";
+                }
+                stream << "\n";
+            }
+            append_indent(stream, 3);
+            stream << "]";
+        }
+        stream << ",\n";
 
         append_indent(stream, 3);
         stream << "\"report\": {\n";
