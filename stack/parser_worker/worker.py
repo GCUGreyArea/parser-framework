@@ -10,6 +10,7 @@ from pymongo import MongoClient, ReturnDocument
 from pymongo.errors import PyMongoError
 
 from stack.common.documents import split_processing_output, utc_now_iso
+from stack.common.rule_catalog import sync_rule_catalog
 from stack.common.settings import env, required_env
 
 
@@ -19,6 +20,7 @@ INGEST_COLLECTION = env("INGEST_COLLECTION", "bundles")
 ANALYSIS_DB = env("ANALYSIS_DB", "analysis")
 PARSED_COLLECTION = env("PARSED_COLLECTION", "parsed_results")
 REPORT_COLLECTION = env("REPORT_COLLECTION", "report_results")
+RULE_CATALOG_COLLECTION = env("RULE_CATALOG_COLLECTION", "rule_catalog")
 PARSER_BINARY = env("PARSER_BINARY", "/app/build/release/example_ingestion_bundle")
 RULES_PATH = env("RULES_PATH", "/app/rules")
 REPORT_RULES_PATH = env("REPORT_RULES_PATH", "/app/report_rules")
@@ -84,6 +86,18 @@ def store_results(client: MongoClient, processed: Dict[str, Any]) -> None:
     analysis_db[REPORT_COLLECTION].replace_one({"_id": report_document["_id"]}, report_document, upsert=True)
 
 
+def sync_configured_rule_catalog(client: MongoClient) -> Dict[str, int]:
+    summary = sync_rule_catalog(
+        client[ANALYSIS_DB][RULE_CATALOG_COLLECTION],
+        {
+            "parser": RULES_PATH,
+            "report": REPORT_RULES_PATH,
+        },
+    )
+    print(f"Rule catalog sync summary: {summary}", flush=True)
+    return summary
+
+
 def mark_completed(client: MongoClient, bundle_id: str) -> None:
     ingestion_collection(client).update_one(
         {"_id": bundle_id},
@@ -135,6 +149,7 @@ def drain_pending_documents(client: MongoClient) -> None:
 
 def watch_loop() -> None:
     client = mongo_client()
+    sync_configured_rule_catalog(client)
     collection = ingestion_collection(client)
 
     while True:

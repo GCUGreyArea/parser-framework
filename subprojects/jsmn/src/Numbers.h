@@ -9,6 +9,7 @@
  * @date 10-10-2022
  */
 #include <iostream>
+#include <cstdint>
 #include <stdio.h>
 #include <stdlib.h>
 

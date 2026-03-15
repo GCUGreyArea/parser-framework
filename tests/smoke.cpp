@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <filesystem>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -14,6 +15,21 @@
 using namespace parser_framework;
 
 namespace {
+
+class ScopedCurrentPath {
+public:
+    explicit ScopedCurrentPath(const std::filesystem::path& path)
+        : previous_(std::filesystem::current_path()) {
+        std::filesystem::current_path(path);
+    }
+
+    ~ScopedCurrentPath() {
+        std::filesystem::current_path(previous_);
+    }
+
+private:
+    std::filesystem::path previous_;
+};
 
 const Token* find_token(const ParseResult& result, const std::string& name) {
     for (const auto& token : result.tokens) {
@@ -364,6 +380,25 @@ TEST(RuleLoader, LoadsExampleMessagesFromRules) {
     EXPECT_NE(std::find(examples.begin(), examples.end(), cloudflare_message()), examples.end());
     EXPECT_NE(std::find(examples.begin(), examples.end(), fortigate_ips_message()), examples.end());
     EXPECT_NE(std::find(examples.begin(), examples.end(), suricata_message()), examples.end());
+}
+
+TEST(RuleLoader, ResolvesExampleMessageFilesFromAbsoluteRulesPathOutsideRepoCwd) {
+    namespace fs = std::filesystem;
+
+    const fs::path rules_path = fs::current_path() / "rules";
+    {
+        ScopedCurrentPath scoped_path("/tmp");
+
+        EXPECT_NO_THROW({
+            const std::vector<MessageRule> rules = RuleLoader::load_rules(rules_path.string());
+            EXPECT_EQ(rules.size(), 6u);
+        });
+
+        EXPECT_NO_THROW({
+            const std::vector<std::string> examples = RuleLoader::load_example_messages(rules_path.string());
+            EXPECT_EQ(examples.size(), 6u);
+        });
+    }
 }
 
 TEST(ReportAnalyzer, GeneratesBreachReportsFromParsedOutput) {
