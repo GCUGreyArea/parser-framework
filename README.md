@@ -91,8 +91,7 @@ operated at the same time. The worked example bundle in
 `bundles/multi-tenant-ingestion.json` shows:
 
 - Cloudflare edge telemetry for a tenant system operated by BAE for SIS
-- AWS-hosted WAF infrastructure leased to and operated for SIS
-- a customer-owned secure network operated by BAE on behalf of SIS
+- AWS-hosted WAF infrastructure
 
 The ingestion pipeline resolves these references, parses each collection with
 the normal parser rules, and then runs the report analyzer across the bundle so
