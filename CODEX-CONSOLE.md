@@ -844,3 +844,23 @@ assistant> The restored patch set is now validated here too, and the stack is he
 + Restored the Mongo keyfile startup path and worker-image fixes required for this branch's Compose stack
 + Updated tests and README for both the rule-catalog behavior and the corrected Docker runtime path
 ```
+
+## Session Continuation 17
+
+```text
+user@codex:~$ where did you get the information regarding networks operated by BAE for SIS. Can you provide a reference link please?
+assistant> There isn’t a public reference for “BAE operates SIS networks” because that specific relationship was not sourced from a real-world citation. It was a synthetic attribution in the demo bundle.
+user@codex:~$ Can you please do that.
+assistant> I’m replacing that unsupported real-world attribution with a clearly fictional operator/customer pairing in the fixture and any dependent tests/docs, so the demo data stays realistic without implying a sourced relationship that we can’t support.
+assistant> I’ve isolated the fixture and doc/test references. I’m using fictional names for the operator/customer organisations while leaving real providers like AWS and Cloudflare intact, so the deployment patterns remain realistic without implying a specific unsupported relationship.
+assistant> The fixture update is in. The README patch missed the current wording, so I’m opening the relevant section and patching against the actual text rather than guessing.
+assistant> I’ve updated the fixture, README example, and the ingestion test. I’m doing a quick search pass now to catch any leftover `org-bae` / `org-sis` references before I run the relevant tests.
+assistant> The search is clean, and the stack-level Python tests already pass. I’m waiting for the native test binary to finish so the fixture rename is fully verified across the C++ ingestion path as well.
+assistant> Done. The unsupported BAE/SIS attribution has been replaced with fictional organisations in the bundle fixture, README, and ingestion test, and the relevant tests pass.
+```
+
+```diff
++ Replaced the unsupported BAE/SIS operator-customer mapping with fictional placeholder organisations in the worked ingestion bundle
++ Updated the README bundle example to match and noted that the operator/customer names are fictional placeholders
++ Updated the ingestion smoke test to assert the renamed fictional operator ID
+```
