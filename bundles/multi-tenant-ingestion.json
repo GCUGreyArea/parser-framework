@@ -5,7 +5,7 @@
   "producer": {
     "component_id": "forwarder-eu-01",
     "component_type": "remote-log-forwarder",
-    "organisation_id": "org-bae",
+    "organisation_id": "org-greyhaven",
     "region": "eu-west"
   },
   "storage": {
@@ -28,16 +28,16 @@
       "tags": ["edge", "waf"]
     },
     {
-      "id": "org-bae",
-      "name": "BAE Systems",
+      "id": "org-greyhaven",
+      "name": "Greyhaven Managed Security",
       "kind": "operator",
-      "tags": ["managed-service", "defence"]
+      "tags": ["managed-service", "mssp", "fictional"]
     },
     {
-      "id": "org-sis",
-      "name": "SIS",
+      "id": "org-northminster",
+      "name": "Northminster Civil Authority",
       "kind": "owner",
-      "tags": ["customer", "government"]
+      "tags": ["customer", "public-sector", "fictional"]
     }
   ],
   "sites": [
@@ -74,22 +74,22 @@
       "environment": "production",
       "site_id": "site-global-edge",
       "attribution": {
-        "tenant_org_ids": ["org-sis"],
-        "operator_org_ids": ["org-bae"],
+        "tenant_org_ids": ["org-northminster"],
+        "operator_org_ids": ["org-greyhaven"],
         "provider_org_ids": ["org-cloudflare"]
       },
       "tags": ["internet-facing", "global"]
     },
     {
       "id": "net-aws-prod-vpc",
-      "name": "SIS Production VPC",
+      "name": "Northminster Production VPC",
       "kind": "cloud-vpc",
       "environment": "production",
       "site_id": "site-apse2",
       "attribution": {
-        "owner_org_ids": ["org-sis"],
-        "operator_org_ids": ["org-bae"],
-        "tenant_org_ids": ["org-sis"],
+        "owner_org_ids": ["org-northminster"],
+        "operator_org_ids": ["org-greyhaven"],
+        "tenant_org_ids": ["org-northminster"],
         "provider_org_ids": ["org-aws"]
       },
       "tags": ["leased", "cloud", "production"]
@@ -101,9 +101,9 @@
       "environment": "production",
       "site_id": "site-uk-secure",
       "attribution": {
-        "owner_org_ids": ["org-sis"],
-        "operator_org_ids": ["org-bae"],
-        "tenant_org_ids": ["org-sis"]
+        "owner_org_ids": ["org-northminster"],
+        "operator_org_ids": ["org-greyhaven"],
+        "tenant_org_ids": ["org-northminster"]
       },
       "tags": ["secure", "customer-owned"]
     }
@@ -119,8 +119,8 @@
       "network_id": "net-public-edge",
       "site_id": "site-global-edge",
       "attribution": {
-        "tenant_org_ids": ["org-sis"],
-        "operator_org_ids": ["org-bae"],
+        "tenant_org_ids": ["org-northminster"],
+        "operator_org_ids": ["org-greyhaven"],
         "provider_org_ids": ["org-cloudflare"]
       },
       "tags": ["internet-facing", "edge"]
@@ -135,9 +135,9 @@
       "network_id": "net-aws-prod-vpc",
       "site_id": "site-apse2",
       "attribution": {
-        "owner_org_ids": ["org-sis"],
-        "operator_org_ids": ["org-bae"],
-        "tenant_org_ids": ["org-sis"],
+        "owner_org_ids": ["org-northminster"],
+        "operator_org_ids": ["org-greyhaven"],
+        "tenant_org_ids": ["org-northminster"],
         "provider_org_ids": ["org-aws"]
       },
       "tags": ["cloud", "perimeter"]
@@ -152,9 +152,9 @@
       "network_id": "net-uk-secure",
       "site_id": "site-uk-secure",
       "attribution": {
-        "owner_org_ids": ["org-sis"],
-        "operator_org_ids": ["org-bae"],
-        "tenant_org_ids": ["org-sis"]
+        "owner_org_ids": ["org-northminster"],
+        "operator_org_ids": ["org-greyhaven"],
+        "tenant_org_ids": ["org-northminster"]
       },
       "tags": ["vpn", "secure-network"]
     },
@@ -168,9 +168,9 @@
       "network_id": "net-uk-secure",
       "site_id": "site-uk-secure",
       "attribution": {
-        "owner_org_ids": ["org-sis"],
-        "operator_org_ids": ["org-bae"],
-        "tenant_org_ids": ["org-sis"]
+        "owner_org_ids": ["org-northminster"],
+        "operator_org_ids": ["org-greyhaven"],
+        "tenant_org_ids": ["org-northminster"]
       },
       "tags": ["sensor", "east-west"]
     }
@@ -188,8 +188,8 @@
       "observed_start": "2021-12-13T11:59:40Z",
       "observed_end": "2021-12-13T11:59:40Z",
       "attribution": {
-        "tenant_org_ids": ["org-sis"],
-        "operator_org_ids": ["org-bae"],
+        "tenant_org_ids": ["org-northminster"],
+        "operator_org_ids": ["org-greyhaven"],
         "provider_org_ids": ["org-cloudflare"]
       },
       "tags": ["log4shell", "external-telemetry"],
@@ -209,9 +209,9 @@
       "observed_start": "2019-12-13T01:40:12Z",
       "observed_end": "2019-12-13T01:40:12Z",
       "attribution": {
-        "owner_org_ids": ["org-sis"],
-        "operator_org_ids": ["org-bae"],
-        "tenant_org_ids": ["org-sis"],
+        "owner_org_ids": ["org-northminster"],
+        "operator_org_ids": ["org-greyhaven"],
+        "tenant_org_ids": ["org-northminster"],
         "provider_org_ids": ["org-aws"]
       },
       "tags": ["sqli", "cloud"],
@@ -231,9 +231,9 @@
       "observed_start": "2021-12-13T11:59:41Z",
       "observed_end": "2021-12-13T11:59:41Z",
       "attribution": {
-        "owner_org_ids": ["org-sis"],
-        "operator_org_ids": ["org-bae"],
-        "tenant_org_ids": ["org-sis"]
+        "owner_org_ids": ["org-northminster"],
+        "operator_org_ids": ["org-greyhaven"],
+        "tenant_org_ids": ["org-northminster"]
       },
       "tags": ["log4shell", "internal-block"],
       "records": [
@@ -252,9 +252,9 @@
       "observed_start": "2023-09-18T06:13:41Z",
       "observed_end": "2023-09-18T06:13:41Z",
       "attribution": {
-        "owner_org_ids": ["org-sis"],
-        "operator_org_ids": ["org-bae"],
-        "tenant_org_ids": ["org-sis"]
+        "owner_org_ids": ["org-northminster"],
+        "operator_org_ids": ["org-greyhaven"],
+        "tenant_org_ids": ["org-northminster"]
       },
       "tags": ["post-compromise", "c2"],
       "records": [

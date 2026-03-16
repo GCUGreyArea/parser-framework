@@ -90,8 +90,13 @@ therefore be modeled as customer-owned, provider-hosted, and third-party
 operated at the same time. The worked example bundle in
 `bundles/multi-tenant-ingestion.json` shows:
 
-- Cloudflare edge telemetry for a tenant system operated by BAE for SIS
+- Cloudflare edge telemetry for a tenant system
 - AWS-hosted WAF infrastructure
+- a customer-owned secure network
+
+The provider examples use real product log shapes where noted, but the
+operator and customer organisation names in the worked bundle are fictional
+placeholders used only to demonstrate attribution modeling.
 
 The ingestion pipeline resolves these references, parses each collection with
 the normal parser rules, and then runs the report analyzer across the bundle so
@@ -109,7 +114,7 @@ At a minimum, an ingestion bundle looks like this:
   "producer": {
     "component_id": "forwarder-eu-01",
     "component_type": "remote-log-forwarder",
-    "organisation_id": "org-bae",
+    "organisation_id": "org-greyhaven",
     "region": "eu-west"
   },
   "storage": {
@@ -135,8 +140,8 @@ At a minimum, an ingestion bundle looks like this:
       "observed_end": "2021-12-13T11:59:40Z",
       "attribution": {
         "owner_org_ids": [],
-        "operator_org_ids": ["org-bae"],
-        "tenant_org_ids": ["org-sis"],
+        "operator_org_ids": ["org-greyhaven"],
+        "tenant_org_ids": ["org-northminster"],
         "provider_org_ids": ["org-cloudflare"]
       },
       "records": [

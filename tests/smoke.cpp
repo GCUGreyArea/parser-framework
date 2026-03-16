@@ -443,7 +443,7 @@ TEST(IngestionLoader, LoadsAttributedBundle) {
     ASSERT_EQ(bundle.systems.size(), 4u);
     ASSERT_EQ(bundle.collections.size(), 4u);
     EXPECT_EQ(bundle.collections[0].system_id, "sys-cloudflare-waf");
-    EXPECT_EQ(bundle.collections[2].attribution.operator_org_ids[0], "org-bae");
+    EXPECT_EQ(bundle.collections[2].attribution.operator_org_ids[0], "org-greyhaven");
     EXPECT_EQ(bundle.systems[1].attribution.provider_org_ids[0], "org-aws");
 }
 
